@@ -139,18 +139,29 @@ impl DataReader {
 }
 
 /// Validate before indexing or summing; a malformed scan is never a zero signal.
+///
+/// m/z order is not required: SRM spectra (Sciex, Waters, Agilent via `--srmAsSpectra`) list
+/// transitions in acquisition order, not ascending.
 fn validate_peak_arrays(mzs: &[f64], intensities: &[f32]) -> Result<()> {
     if mzs.len() != intensities.len()
         || mzs.iter().any(|v| !v.is_finite() || *v < 0.0)
-        || mzs.windows(2).any(|w| w[0] > w[1])
         || intensities.iter().any(|v| !v.is_finite())
     {
         return Err(ChromascopeError::MzDataError(
-            "Peak arrays must have equal lengths, finite intensities and sorted nonnegative masses"
-                .into(),
+            "Peak arrays must have equal lengths, finite intensities and nonnegative masses".into(),
         ));
     }
     Ok(())
+}
+
+/// Indices of peaks with `lo <= mz <= hi`; binary search when the m/z array is ascending, a
+/// linear scan otherwise.
+fn peaks_in_range(mzs: &[f64], lo: f64, hi: f64) -> Box<dyn Iterator<Item = usize> + '_> {
+    if mzs.windows(2).all(|w| w[0] <= w[1]) {
+        Box::new(mzs.partition_point(|mz| *mz < lo)..mzs.partition_point(|mz| *mz <= hi))
+    } else {
+        Box::new((0..mzs.len()).filter(move |&i| mzs[i] >= lo && mzs[i] <= hi))
+    }
 }
 
 /// Sum stored profile/centroid samples without peak picking or silent truncation.
@@ -161,21 +172,17 @@ fn raw_summary(
 ) -> Result<(f32, f32)> {
     let calculate = |mzs: &[f64], intensities: &[f32]| -> Result<(f32, f32)> {
         validate_peak_arrays(mzs, intensities)?;
-        let (lo, hi) = range.map_or((0, mzs.len()), |(lo, hi)| {
-            (
-                mzs.partition_point(|mz| *mz < lo),
-                mzs.partition_point(|mz| *mz <= hi),
-            )
-        });
+        let selected: Box<dyn Iterator<Item = usize> + '_> = match range {
+            Some((lo, hi)) => peaks_in_range(mzs, lo, hi),
+            None => Box::new(0..mzs.len()),
+        };
         let result = if base_peak {
-            intensities[lo..hi]
-                .iter()
-                .enumerate()
-                .max_by(|a, b| a.1.total_cmp(b.1))
-                .map(|(i, intensity)| (*intensity, mzs[lo + i] as f32))
+            selected
+                .max_by(|&a, &b| intensities[a].total_cmp(&intensities[b]))
+                .map(|i| (intensities[i], mzs[i] as f32))
                 .unwrap_or((0.0, 0.0))
         } else {
-            (sum_intensities(intensities[lo..hi].iter().copied()), 0.0)
+            (sum_intensities(selected.map(|i| intensities[i])), 0.0)
         };
         if !result.0.is_finite() || !result.1.is_finite() {
             return Err(ChromascopeError::MzDataError(
@@ -1235,19 +1242,11 @@ impl MzData {
                         ChromascopeError::MzDataError(format!("Cannot read XIC m/z array: {:?}", e))
                     })?;
                     let intensities = arrays.intensities().map_err(|e| ChromascopeError::MzDataError(format!("Cannot read XIC intensity array: {e:?}")))?;
-                    if mzs.len() != intensities.len() || mzs.iter().any(|v| !v.is_finite() || *v < 0.0) || mzs.windows(2).any(|w| w[0] > w[1]) || intensities.iter().any(|v| !v.is_finite()) {
-                        return Err(ChromascopeError::MzDataError("XIC arrays must have equal lengths, finite intensities and sorted nonnegative masses".into()));
-                    }
-                    let lower = mass - tol_da;
-                    let upper = mass + tol_da;
-                    let start = mzs.partition_point(|&mz| mz < lower);
-                    let end = mzs.partition_point(|&mz| mz <= upper);
-                    if start == end {
-                        return Ok((spectrum_rt, 0.0, spectrum_idx));
-                    }
+                    validate_peak_arrays(&mzs, &intensities)?;
+                    let selected = peaks_in_range(&mzs, mass - tol_da, mass + tol_da);
                     return Ok((
                         spectrum_rt,
-                        sum_intensities(intensities[start..end].iter().copied()),
+                        sum_intensities(selected.map(|i| intensities[i])),
                         spectrum_idx,
                     ));
                 }

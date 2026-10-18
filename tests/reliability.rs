@@ -68,6 +68,35 @@ fn unsorted_acquisition_has_actual_rt_extrema_and_preserved_scan_mapping() {
     assert_eq!(trace.retention_time.last(), Some(&9.));
 }
 #[test]
+fn unsorted_mz_arrays_as_in_srm_spectra_are_read_not_rejected() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = mixed_source(temp.path());
+    let encode = |v: &[f64]| {
+        base64::engine::general_purpose::STANDARD
+            .encode(v.iter().flat_map(|v| v.to_le_bytes()).collect::<Vec<_>>())
+    };
+    // Transitions are listed in acquisition order, not ascending m/z.
+    let text = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace(&encode(&[100., 200., 300.]), &encode(&[300., 100., 200.]));
+    std::fs::write(&path, text).unwrap();
+    let mut reader = MzData::new();
+    reader.open_msfile(&path).unwrap();
+    // The 200-count peak now carries m/z 200; every path must select it by value.
+    let tic = reader
+        .get_tic(1, ScanPolarity::Positive, Some((150., 250.)), None)
+        .unwrap();
+    assert_eq!(tic.intensity[2], 200.);
+    let bpc = reader
+        .get_bpic(1, ScanPolarity::Positive, None, None)
+        .unwrap();
+    assert_eq!(bpc.mz[2], 200.);
+    let xic = reader
+        .get_xic(200., 1, ScanPolarity::Positive, 10., None)
+        .unwrap();
+    assert_eq!(xic.intensity[2], 200.);
+}
+#[test]
 fn malformed_arrays_are_errors_in_every_extraction_path_and_reader_recovers() {
     let temp = tempfile::tempdir().unwrap();
     let path = mixed_source(temp.path());
