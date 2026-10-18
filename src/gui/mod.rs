@@ -683,7 +683,7 @@ impl eframe::App for MzViewerApp {
         }
         panels::update_data_selection_panel(self, ctx);
         quant::poll(self, ctx);
-        if workbench::advanced_active(self, ctx) {
+        if workbench::advanced_active(self) {
             workbench::status(self, ctx);
         } else if self.quant.active {
             update::show_notice_bar(&self.updates, ctx);
@@ -704,7 +704,6 @@ impl eframe::App for MzViewerApp {
             statistics::show(self, ctx);
         }
         delivery::show(self, ctx);
-        workbench::activity(self, ctx);
         dialogs::render_error_dialog(self, ctx);
         information::show(self, ctx);
     }

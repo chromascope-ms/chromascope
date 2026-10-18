@@ -41,6 +41,6 @@ To add a flag, change the `args` in your client's configuration and restart the 
 
 ## Where to look
 
-- The tab **AI activity** in the window shows every call and failure with its exact request.
+- The AI call log in the status bar of the window (View log) shows every call and failure with its exact request.
 - `session_audit` lets the assistant read the same list.
-- Report problems at [github.com/chromascope-ms/chromascope/issues](https://github.com/chromascope-ms/chromascope/issues). Say which program (`chromascope-mcp` or `chromascope-engine-mcp`), the flags you used, your client, and the failing call from **AI activity**.
+- Report problems at [github.com/chromascope-ms/chromascope/issues](https://github.com/chromascope-ms/chromascope/issues). Say which program (`chromascope-mcp` or `chromascope-engine-mcp`), the flags you used, your client, and the failing call from the AI call log.

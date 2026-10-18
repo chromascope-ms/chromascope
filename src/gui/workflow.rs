@@ -33,7 +33,6 @@ pub(super) enum Destination {
     Statistics,
     /// Audit package workspace.
     AuditPackage,
-    Activity,
     /// Project dialogs; these do not change the visible workspace.
     OpenProject,
     SaveProject,
@@ -116,12 +115,6 @@ pub(super) fn go(app: &mut MzViewerApp, ctx: &egui::Context, destination: Destin
     app.untargeted.open = destination == Destination::Untargeted;
     app.statistics.open = destination == Destination::Statistics;
     app.delivery.open = destination == Destination::AuditPackage;
-    ctx.data_mut(|d| {
-        d.insert_temp(
-            egui::Id::new("activity_open"),
-            destination == Destination::Activity,
-        );
-    });
     if destination == Destination::OpenData {
         super::panels::handle_file_selection(app);
     }

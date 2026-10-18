@@ -594,7 +594,7 @@ pub struct Envelope {
 /// Messages from the server threads to the window that no client can send as a command: they
 /// are produced only by the server itself, so an AI cannot inject results or log entries.
 pub(crate) enum Internal {
-    /// A tool call served by the headless engine, for the AI activity log.
+    /// A tool call served by the headless engine, for the AI call log.
     Activity(Value),
     /// A finished analysis (the JSON of an `engine::Response`) to put in the Quantification tab.
     Analysis {
@@ -802,7 +802,7 @@ impl McpServer {
             }
         });
     }
-    /// Serves one of the headless engine's tools, logs it in the AI activity view and ties the
+    /// Serves one of the headless engine's tools, logs it in the AI call log and ties the
     /// analysis jobs to the window.
     async fn call_engine_tool(
         &self,
@@ -867,7 +867,7 @@ impl McpServer {
         Ok(CallToolResponse::Complete(reply))
     }
 }
-/// One AI activity entry; request payloads over 64 KiB are summarised so a large trace cannot
+/// One AI call log entry; request payloads over 64 KiB are summarised so a large trace cannot
 /// fill the window's memory.
 fn activity_entry(tool: &str, parameters: &Value, outcome: Result<(), &str>) -> Value {
     let text = parameters.to_string();
@@ -1712,7 +1712,7 @@ impl McpServer {
         self.dispatch(Command::ClearIntegration {}).await
     }
     #[tool(
-        description = "Switch the window to a workspace: Data explorer, Quantification and QC (at a stage), method editor, Audit package or AI activity. Requires --allow-changes.",
+        description = "Switch the window to a workspace: Data explorer, Quantification and QC (at a stage), method editor or Audit package (where the person reviews AI proposals). Requires --allow-changes.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -2277,7 +2277,7 @@ pub struct RemoveMeasurementArgs {
 #[serde(deny_unknown_fields)]
 pub struct ShowWorkspaceArgs {
     /// `data_explorer`, `quantification`, `method_editor` (the method window of the
-    /// Quantification tab), `audit_package` or `ai_activity`.
+    /// Quantification tab) or `audit_package`.
     pub workspace: String,
     /// Quantification stage: `review`, `calibration` or `qc`; the last one when omitted.
     pub stage: Option<String>,

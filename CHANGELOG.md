@@ -37,7 +37,7 @@ quantification workbench with a command-line interface and two MCP servers.
   `analysis_capabilities` returns the complete schema. A
   calibration or QC computed by an AI appears in the Quantification tab without reopening anything.
   Launch flags `--allow-root`, `--allow-changes`, `--allow-exports` and
-  `--allow-project-writes` decide what it may touch; every call is recorded under **AI activity**.
+  `--allow-project-writes` decide what it may touch; every call is recorded in the AI call log of the window.
   Every tool has its own description that says what it does, when to use it and which flag it
   needs, and carries read-only/destructive annotations. `chromascope-engine-mcp` is a subset of
   this server, kept for scripts and machines without a desktop.

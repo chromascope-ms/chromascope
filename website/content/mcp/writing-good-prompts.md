@@ -31,7 +31,7 @@ Add one of these to a request that matters:
 - *"List every sample you changed and every file you wrote."*
 - *"Say what is measured and what is your interpretation."*
 
-The evidence is in the window too: the tab **AI activity** lists every call with its exact request.
+The evidence is in the window too: the AI call log (status bar, View log) lists every call with its exact request.
 
 ## Start small
 
@@ -57,4 +57,4 @@ An assistant can correct boundaries, but it cannot mark a peak as reviewed; that
 
 ## When you get a wrong answer
 
-Ask the assistant to name the tool call that produced the number, then compare it with the call in **AI activity**. If the settings differ from what you meant, say so and repeat the step. Nothing the assistant did to the window is permanent until you save it; **File**, then **Open viewer session…** returns to an earlier state.
+Ask the assistant to name the tool call that produced the number, then compare it with the call in the AI call log. If the settings differ from what you meant, say so and repeat the step. Nothing the assistant did to the window is permanent until you save it; **File**, then **Open viewer session…** returns to an earlier state.

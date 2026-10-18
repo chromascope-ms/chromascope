@@ -18,7 +18,6 @@ pub fn navigation(app: &mut MzViewerApp, ui: &mut egui::Ui) {
     const UNTARGETED: usize = 3;
     const STATISTICS: usize = 4;
     const AUDIT: usize = 5;
-    const ACTIVITY: usize = 6;
     let destinations: Vec<(usize, &str)> = [
         (DATA, "Data explorer"),
         (QUANT, "Quantification and QC"),
@@ -26,7 +25,6 @@ pub fn navigation(app: &mut MzViewerApp, ui: &mut egui::Ui) {
         (UNTARGETED, "Untargeted analysis"),
         (STATISTICS, "Statistics"),
         (AUDIT, super::workflow::AUDIT_PACKAGE),
-        (ACTIVITY, "AI activity"),
     ]
     .into_iter()
     .filter(|(id, _)| {
@@ -43,12 +41,6 @@ pub fn navigation(app: &mut MzViewerApp, ui: &mut egui::Ui) {
         STATISTICS
     } else if app.delivery.open {
         AUDIT
-    } else if ui
-        .ctx()
-        .data(|d| d.get_temp::<bool>(egui::Id::new("activity_open")))
-        .unwrap_or(false)
-    {
-        ACTIVITY
     } else {
         DATA
     };
@@ -74,7 +66,6 @@ pub fn navigation(app: &mut MzViewerApp, ui: &mut egui::Ui) {
             egui::Key::Num4,
             egui::Key::Num5,
             egui::Key::Num6,
-            egui::Key::Num7,
         ]) {
             if input.events.iter().any(|event| matches!(event, egui::Event::Key { key: pressed_key, pressed: true, modifiers, .. } if *pressed_key == key && (modifiers.alt || modifiers.ctrl))) {
                 selected = *id;
@@ -86,10 +77,8 @@ pub fn navigation(app: &mut MzViewerApp, ui: &mut egui::Ui) {
     app.untargeted.open = selected == UNTARGETED;
     app.statistics.open = selected == STATISTICS;
     app.delivery.open = selected == AUDIT;
-    ui.ctx().data_mut(|d| {
-        d.insert_temp(egui::Id::new("activity_open"), selected == ACTIVITY);
-        d.insert_temp(egui::Id::new("central_workspaces"), true);
-    });
+    ui.ctx()
+        .data_mut(|d| d.insert_temp(egui::Id::new("central_workspaces"), true));
     // Applied last: the tab flags above are derived from the pre-click selection and would
     // otherwise undo a jump chosen in the workflow menu.
     if let Some(destination) = workflow_goto {
@@ -143,75 +132,9 @@ pub(super) fn scroll_new_focus(ui: &egui::Ui) {
     }
 }
 
-pub(super) fn advanced_active(app: &MzViewerApp, ctx: &Context) -> bool {
+pub(super) fn advanced_active(app: &MzViewerApp) -> bool {
     (crate::EXPERIMENTAL && (app.spectral.open || app.untargeted.open || app.statistics.open))
         || app.delivery.open
-        || ctx
-            .data(|d| d.get_temp::<bool>(egui::Id::new("activity_open")))
-            .unwrap_or(false)
-}
-
-pub fn activity(app: &mut MzViewerApp, ctx: &Context) {
-    let id = egui::Id::new("activity_open");
-    let mut open = ctx.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
-    analytical_panel(ctx, "AI activity", &mut open, |ui| {
-        super::ai_review::panel(app, ui);
-        ui.separator();
-        #[cfg(feature = "mcp")]
-        if let Some(bridge) = &app.remote {
-            crate::gui::widgets::section_title(ui, "Connected MCP session");
-            ui.label(format!("{} completed requests", bridge.history.len()));
-            ui.label(format!(
-                "Analytical changes: {} · Exports: {}",
-                if bridge.policy.allow_changes {
-                    "Allowed"
-                } else {
-                    "Blocked"
-                },
-                if bridge.policy.allow_exports {
-                    "Allowed"
-                } else {
-                    "Blocked"
-                }
-            ));
-            if bridge.pending.is_some() {
-                ui.spinner();
-                ui.label("Reading or extracting dataset data…");
-            }
-            ui.label("Legacy requests execute under server launch permissions. Revision-bound suggestions use the review proposal controls above; approval and rejection retain separate attributed decisions.");
-            for entry in bridge.history.iter().rev().take(100) {
-                let success = entry["success"].as_bool().unwrap_or(false);
-                let request = &entry["request"];
-                let tool = request["operation"].as_str().unwrap_or("MCP request");
-                ui.collapsing(
-                    format!(
-                        "{} · {} · {}",
-                        entry["sequence"],
-                        tool,
-                        if success { "Completed" } else { "Failed" }
-                    ),
-                    |ui| {
-                        if let Some(error) = entry["error"].as_str() {
-                            ui.label(error);
-                        }
-                        ui.label("Request details (data, parameters and requested changes)");
-                        ui.monospace(serde_json::to_string_pretty(request).unwrap_or_default());
-                    },
-                );
-            }
-            ui.small("Showing the latest 100 requests. Peak corrections and engine revisions retain their own scientific review history.");
-        } else {
-            ui.label("No MCP client is connected.");
-            ui.label("Launch chromascope-mcp from your client to inspect session activity here.");
-        }
-        #[cfg(not(feature = "mcp"))]
-        {
-            let _ = app;
-            ui.label("This desktop build runs without MCP.");
-            ui.label("Use the MCP-enabled executable to connect an external agent. Numerical analysis remains available in this workbench.");
-        }
-    });
-    ctx.data_mut(|d| d.insert_temp(id, open));
 }
 
 pub fn configure(ctx: &Context, dark: bool) {
@@ -351,8 +274,8 @@ pub fn status(app: &mut MzViewerApp, ctx: &Context) {
                 || app.workspace.traces.values().flatten().any(|trace|trace.visible && contrast_ratio(trace.color.to_egui_for(ui.visuals().dark_mode),ui.visuals().panel_fill)<3.0);
             if low_contrast { ui.colored_label(ui.visuals().warn_fg_color,"Low-contrast trace color · adjust Appearance or switch theme"); }
             ui.separator();
-            if advanced_active(app,ctx) || app.quant.active {
-                ui.small(format!("Alt/Ctrl+1–{}: workspace · Tab: next control · Enter/Space: activate · Plot controls: zoom, pan, reset", if crate::EXPERIMENTAL { 7 } else { 4 }));
+            if advanced_active(app) || app.quant.active {
+                ui.small(format!("Alt/Ctrl+1–{}: workspace · Tab: next control · Enter/Space: activate · Plot controls: zoom, pan, reset", if crate::EXPERIMENTAL { 6 } else { 3 }));
             } else { ui.small("Double-click: spectrum · Right-drag: integrate · Middle-drag: zoom · Numeric alternatives in Selection"); }
         });
     });

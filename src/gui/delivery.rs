@@ -78,6 +78,11 @@ pub(super) fn show(app: &mut super::MzViewerApp, ctx: &egui::Context) {
     }
     let mut open = app.delivery.open;
     super::workbench::analytical_panel(ctx, super::workflow::AUDIT_PACKAGE, &mut open, |ui| {
+        egui::CollapsingHeader::new("Review AI proposals")
+            .id_salt("review_ai_proposals")
+            .default_open(true)
+            .show(ui, |ui| super::ai_review::panel(app, ui));
+        ui.add_space(8.0);
         release_review(app, ctx, ui);
         ui.add_space(8.0);
         let s = &mut app.delivery;
@@ -251,9 +256,6 @@ fn release_review(app: &mut super::MzViewerApp, ctx: &egui::Context, ui: &mut eg
             }
             if ui.small_button("Quantification and QC").clicked() {
                 chosen = Some(super::workflow::Destination::Quant);
-            }
-            if ui.small_button("AI activity").clicked() {
-                chosen = Some(super::workflow::Destination::Activity);
             }
         });
     }

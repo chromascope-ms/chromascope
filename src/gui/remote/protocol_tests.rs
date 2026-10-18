@@ -325,7 +325,7 @@ fn calibration_quantification_and_qc_appear_in_the_quantification_tab() {
     let qc_job = qc["job_id"].as_str().unwrap().to_owned();
     wait_for_job(&mut desktop, &qc_job);
     desktop.pump_until(10, |d| d.app.quant.qc_report_count() == 1);
-    // 3. Both calls are in the AI activity log.
+    // 3. Both calls are in the AI call log.
     let history = &desktop.app.remote.as_ref().unwrap().history;
     let operations: Vec<&str> = history
         .iter()
@@ -2146,11 +2146,6 @@ fn the_window_can_be_switched_between_workspaces_over_mcp() {
         d.ctx
             .data(|data| data.get_temp::<usize>(egui::Id::new("quantification_stage")))
     };
-    let activity = |d: &Desktop| {
-        d.ctx
-            .data(|data| data.get_temp::<bool>(egui::Id::new("activity_open")))
-            .unwrap_or(false)
-    };
     assert!(!desktop.app.quant.active);
     desktop.tool("show_workspace", json!({"workspace":"quantification"}));
     assert!(desktop.app.quant.active);
@@ -2165,12 +2160,26 @@ fn the_window_can_be_switched_between_workspaces_over_mcp() {
     }
     desktop.tool("show_workspace", json!({"workspace":"audit_package"}));
     assert!(desktop.app.delivery.open && !desktop.app.quant.active);
-    desktop.tool("show_workspace", json!({"workspace":"ai_activity"}));
-    assert!(activity(&desktop) && !desktop.app.delivery.open);
+    // The AI activity tab is gone: the old name is refused and the error names the valid ones.
+    let gone = desktop.tool_error("show_workspace", json!({"workspace":"ai_activity"}));
+    let message = gone["message"].as_str().unwrap();
+    for valid in [
+        "data_explorer",
+        "quantification",
+        "method_editor",
+        "audit_package",
+        "View log",
+    ] {
+        assert!(message.contains(valid), "{valid} missing from: {message}");
+    }
+    assert!(
+        desktop.app.delivery.open,
+        "a refused switch leaves the window where it was"
+    );
     desktop.tool("show_workspace", json!({"workspace":"method_editor"}));
-    assert!(desktop.app.quant.active && !activity(&desktop));
+    assert!(desktop.app.quant.active);
     desktop.tool("show_workspace", json!({"workspace":"data_explorer"}));
-    assert!(!desktop.app.quant.active && !desktop.app.delivery.open && !activity(&desktop));
+    assert!(!desktop.app.quant.active && !desktop.app.delivery.open);
     // Unknown names, a stage on the wrong workspace and workflows that are not in this build.
     let mut bad = vec![
         json!({"workspace":"nowhere"}),
@@ -2772,7 +2781,7 @@ fn datasets_traces_results_qc_reports_and_project_revisions_are_readable_resourc
             .contains("No project is open"),
         "{none}"
     );
-    // Reading is recorded in the AI activity log like any other request.
+    // Reading is recorded in the AI call log like any other request.
     assert!(desktop
         .app
         .remote

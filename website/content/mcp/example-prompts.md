@@ -5,7 +5,7 @@ Thirty-two prompts you can paste into your assistant, from a single look at a fi
 !!! info "Replace the names with your own"
     The examples use `sample.mzML`, `standards`, the folder `C:\MSData` and the compound caffeine as stand-ins. Change them to your own files, folders and masses. The assistant can only reach files inside a folder you gave with `--allow-root`; every prompt needs that flag, so it is not repeated in the lists below.
 
-The assistant chooses its own steps, so the tools it calls can differ a little from the list. The list shows what the guide expects. In the window, the tab **AI activity** shows what really happened.
+The assistant chooses its own steps, so the tools it calls can differ a little from the list. The list shows what the guide expects. In the window of `chromascope-mcp`, the AI call log (status bar, View log) shows what really happened.
 
 ## Open and inspect data
 

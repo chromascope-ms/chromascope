@@ -11,7 +11,6 @@ At the top you find the menus **File**, **Project** and **View**, then the tabs:
 | **Data explorer** | Look at the data: file list, chromatograms, spectra, integration, figures. |
 | **Quantification and QC** | Measure many samples: methods, peak review, calibration, concentrations and batch QC. |
 | **Audit package** | Check a project, then build a report or a portable package from it. |
-| **AI activity** | See every call an AI assistant made in this session. |
 
 A button at the right end of the tab bar shows where you are in the analysis, from project to report, and takes you to the next step. **File**, then **About Chromascope…** shows the version, the project links and the licences.
 

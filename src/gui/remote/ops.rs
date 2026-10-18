@@ -283,14 +283,17 @@ pub(super) fn show_workspace(
         ("quantification", Some(_)) => return Err("stage: review, calibration or qc".into()),
         ("method_editor", _) => Destination::Method,
         ("audit_package", _) => Destination::AuditPackage,
-        ("ai_activity", _) => Destination::Activity,
         // The workflows that are not part of this build cannot be shown.
         ("identification", _) if crate::EXPERIMENTAL => Destination::Identify,
         ("untargeted_analysis", _) if crate::EXPERIMENTAL => Destination::Untargeted,
         ("statistics", _) if crate::EXPERIMENTAL => Destination::Statistics,
+        ("ai_activity", _) => {
+            return Err(
+                "There is no AI activity workspace any more: the AI call log is the \"View log\" window of the status bar, and AI proposals are in audit_package (Review AI proposals). Valid workspaces: data_explorer, quantification, method_editor, audit_package".into(),
+            )
+        }
         _ => return Err(
-            "workspace: data_explorer, quantification, method_editor, audit_package or ai_activity"
-                .into(),
+            "workspace: data_explorer, quantification, method_editor or audit_package".into(),
         ),
     };
     super::super::workflow::go(app, ctx, destination);

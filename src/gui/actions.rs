@@ -486,7 +486,6 @@ pub const ACTIONS: &[Action] = &[
         &[
             "Data explorer",
             "Quantification and QC",
-            "AI activity",
         ],
         &["show_workspace"],
     ),
@@ -532,16 +531,16 @@ pub const ACTIONS: &[Action] = &[
             "export_project_report",
         ],
     ),
-    // ---- AI activity
+    // ---- AI call log and AI proposals
     act(
-        "Read the AI activity and the audit of an AI session",
-        "AI activity workspace",
+        "Read the AI call log and the audit of an AI session",
+        "Status bar of the chromascope-mcp window",
         &[],
         &["session_audit", "gui_state"],
     ),
     engine(
         "Prepare, load and decide on AI review proposals",
-        "AI activity workspace",
+        "Audit package tab, Review AI proposals",
         &[
             "Load MCP / saved review proposal…",
             "Prepare reversal",

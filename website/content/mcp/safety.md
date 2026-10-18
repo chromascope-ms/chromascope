@@ -22,7 +22,7 @@ An approval that goes through `resolve_review_proposal` is attributed to the nam
 
 ## What is recorded
 
-The tab **AI activity** lists every call an assistant made in this session: the tool, the exact request (a request larger than 64 KiB is summarised by its size and its SHA-256), the outcome, and the permissions the program was started with. Failures are listed too. The list lives in memory for the session. To keep it, export it before you close the program: `prepare_analysis_report` collects it with the jobs into a report draft, and an audit package keeps the project evidence.
+The AI call log (status bar of the `chromascope-mcp` window, View log) lists every call an assistant made in this session: the tool, the exact request (a request larger than 64 KiB is summarised by its size and its SHA-256), the outcome, and the permissions the program was started with. Failures are listed too. The list lives in memory for the session. To keep it, export it before you close the program: `prepare_analysis_report` collects it with the jobs into a report draft, and an audit package keeps the project evidence.
 
 The results keep the units, settings and software versions they were made with, and the hash of the source file. Corrections made by an assistant stay distinct from a human review. Text written by an assistant is never stored as a measured value, and an assistant's explanation is marked as unverified in reports.
 

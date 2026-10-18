@@ -125,7 +125,7 @@ pub fn update_data_selection_panel(app: &mut MzViewerApp, ctx: &Context) {
 
             super::project_workbench::menu(app, ui);
             ui.menu_button("View", |ui| {
-                if !app.quant.active && !super::workbench::advanced_active(app, ctx) {
+                if !app.quant.active && !super::workbench::advanced_active(app) {
                     add_display_options(app, ui);
                     ui.separator();
                     let changed = ui.checkbox(&mut app.workspace.view.files, "Data files").changed()
@@ -184,7 +184,7 @@ pub fn update_data_selection_panel(app: &mut MzViewerApp, ctx: &Context) {
             ui.separator();
             super::workbench::navigation(app, ui);
         });
-        if !app.quant.active && !super::workbench::advanced_active(app, ctx) {
+        if !app.quant.active && !super::workbench::advanced_active(app) {
             ui.horizontal(|ui| {
                 let loaded = app.active_file_id.and_then(|id| app.files.get(&id)).is_some_and(|f| !f.is_loading);
                 ui.add_enabled_ui(loaded, |ui| super::workbench::trace_buttons(app, ui));
@@ -1243,7 +1243,6 @@ mod compact_header_tests {
                         "Data explorer",
                         "Quantification and QC",
                         super::super::workflow::AUDIT_PACKAGE,
-                        "AI activity",
                     ]
                     .into_iter()
                     .chain(experimental.into_iter().filter(|_| crate::EXPERIMENTAL))

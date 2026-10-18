@@ -152,7 +152,7 @@ Its jobs and its audit log live in memory, so export what you need before you cl
 
 1. Restart your client after you saved the configuration. A Chromascope window opens, titled *Chromascope — MCP*. (The headless program opens no window.)
 2. Ask the assistant: *List the mzML files in `C:\MSData`.* (use your folder). It should call `list_mzml_files` and answer with your files.
-3. Look at the tab **AI activity** in the window. The call is listed there with its exact request and the permissions the program was started with.
+3. Look at the AI call log in the status bar of the window (View log). The call is listed there with its exact request and the permissions the program was started with.
 4. If you started it with `--allow-changes`, ask: *Open one of those files and show me its TIC.* The trace appears in the window.
 
 If the window does not open or the client shows no tools, see [MCP troubleshooting](troubleshooting.md).

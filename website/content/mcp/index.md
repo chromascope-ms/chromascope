@@ -6,7 +6,7 @@ Three things stay true however you use it:
 
 - *Chromascope contains no AI.* The assistant is a separate program of your choice (for example Claude Desktop). It reasons; Chromascope calculates. Every area, every calibration and every QC verdict is computed by the same code that the buttons use, so a number from the assistant is the number you get by clicking.
 - *You decide what the assistant may do.* When you start the program you give it permissions with launch flags. With none, the assistant can only look at files inside the folders you name.
-- *Everything is recorded.* The tab **AI activity** lists every call, with its exact request, as it happens.
+- *Everything is recorded.* The AI call log in the status bar of the `chromascope-mcp` window (View log) lists every call, with its exact request, as it happens.
 
 ## Two programs
 
