@@ -11,6 +11,15 @@ use mzdata::spectrum::ScanPolarity;
 use rmcp::model::CallToolResult;
 use serde_json::{json, Value};
 
+/// What an AI sends with `review_quantification` and `propose=true`.
+struct BoundaryProposal {
+    result_index: usize,
+    bounds: (Option<f64>, Option<f64>),
+    reviewed: bool,
+    dataset: Option<DatasetRef>,
+    reason: Option<String>,
+    evidence: Vec<String>,
+}
 pub(crate) struct PendingOperation {
     source: PendingSource,
     reply: tokio::sync::oneshot::Sender<CallToolResult>,
@@ -542,6 +551,14 @@ impl MzViewerApp {
                     entry["sequence"] = json!(bridge.history.len());
                     bridge.history.push(entry);
                 }
+                Internal::Proposal(proposal) => {
+                    let id = proposal.id;
+                    let kind = proposal.proposer().to_owned();
+                    self.ai.deliver(*proposal);
+                    let mut entry = json!({"request":{"operation":"show_ai_proposal","parameters":{"proposal_id":id,"proposed_by":kind}},"success":true});
+                    entry["sequence"] = json!(bridge.history.len());
+                    bridge.history.push(entry);
+                }
                 Internal::Analysis { job_id, response } => {
                     let outcome = serde_json::from_value::<crate::engine::Response>(*response)
                         .map_err(|e| e.to_string())
@@ -916,7 +933,7 @@ impl MzViewerApp {
                 | Command::ApplyPreset { .. }
                 | Command::StartQuantification { .. }
                 | Command::CancelQuantification {}
-                | Command::ReviewQuantification { .. }
+                | Command::ReviewQuantification { propose: false, .. }
                 | Command::ResetQuantification { .. }
         ) || matches!(
             c,
@@ -1491,6 +1508,27 @@ impl MzViewerApp {
                 start_minutes,
                 end_minutes,
                 reviewed,
+                propose: true,
+                dataset_id,
+                reason,
+                evidence,
+            } => self.propose_boundaries(
+                b,
+                BoundaryProposal {
+                    result_index,
+                    bounds: (start_minutes, end_minutes),
+                    reviewed,
+                    dataset: dataset_id,
+                    reason,
+                    evidence,
+                },
+            )?,
+            Command::ReviewQuantification {
+                result_index,
+                start_minutes,
+                end_minutes,
+                reviewed,
+                ..
             } => {
                 super::quant::remote_review(
                     self,
@@ -1503,6 +1541,66 @@ impl MzViewerApp {
             }
         };
         Ok(CallToolResult::structured(value))
+    }
+    /// `review_quantification` with `propose`: puts new boundaries for one batch result into the
+    /// review list as a proposal. No result changes; a person decides in the Audit package.
+    fn propose_boundaries(
+        &mut self,
+        b: &GuiBridge,
+        proposal: BoundaryProposal,
+    ) -> Result<Value, String> {
+        let BoundaryProposal {
+            result_index,
+            bounds,
+            reviewed,
+            dataset,
+            reason,
+            evidence,
+        } = proposal;
+        if reviewed {
+            return Err("A proposal cannot mark a result reviewed: a person does that".into());
+        }
+        let (Some(start), Some(end)) = bounds else {
+            return Err("A proposal needs start_minutes and end_minutes".into());
+        };
+        let reason = reason
+            .filter(|r| !r.trim().is_empty())
+            .ok_or("A proposal needs a reason (reason)")?;
+        if evidence.is_empty() || evidence.iter().any(|e| e.trim().is_empty()) {
+            return Err("A proposal needs evidence: what you looked at (evidence)".into());
+        }
+        let dataset = dataset.map(|d| d.index());
+        let stable = dataset.and_then(|id| match b.stable.get(&id) {
+            Some(StableState::Ready(hash)) => Some(format!("sha256:{hash}")),
+            _ => None,
+        });
+        let proposal = super::quant::remote_propose(
+            self,
+            super::quant::PeakProposalRequest {
+                index: result_index,
+                dataset,
+                dataset_stable_id: stable,
+                start,
+                end,
+                reason: &reason,
+                evidence: &evidence,
+                proposer: "chromascope-mcp",
+            },
+        )?;
+        let edit = proposal.peak_edit.clone().ok_or("No peak edit")?;
+        self.ai.deliver(proposal.clone());
+        Ok(json!({
+            "proposal_id": proposal.id,
+            "changed": false,
+            "status": "awaiting_decision",
+            "where": "Audit package, Review AI proposals: the person approves or rejects it there",
+            "result_index": edit.result_index,
+            "sample": edit.sample,
+            "analyte": edit.analyte,
+            "original": edit.original,
+            "proposed": edit.proposed,
+            "note": "Nothing was changed. You cannot approve your own proposal."
+        }))
     }
     fn remote_display(
         &mut self,
@@ -2029,7 +2127,11 @@ mod tests {
                     result_index: 0,
                     start_minutes: Some(a),
                     end_minutes: Some(z),
-                    reviewed: true
+                    reviewed: true,
+                    propose: false,
+                    dataset_id: None,
+                    reason: None,
+                    evidence: vec![],
                 },
                 &mut b,
                 &ctx
@@ -2042,6 +2144,10 @@ mod tests {
                     start_minutes: Some(a),
                     end_minutes: Some(z),
                     reviewed: false,
+                    propose: false,
+                    dataset_id: None,
+                    reason: None,
+                    evidence: vec![],
                 },
                 &mut b,
                 &ctx,

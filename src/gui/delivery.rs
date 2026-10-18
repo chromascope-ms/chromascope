@@ -85,7 +85,7 @@ pub(super) fn show(app: &mut super::MzViewerApp, ctx: &egui::Context) {
             section = section.open(Some(true));
         }
         section.show(ui, |ui| super::ai_review::panel(app, ui));
-        ui.add_space(8.0);
+        ui.separator();
         release_review(app, ctx, ui);
         ui.add_space(8.0);
         let s = &mut app.delivery;
@@ -434,21 +434,20 @@ mod tests {
         let ctx = egui::Context::default();
         ctx.style_mut(|s| s.animation_time = 0.);
         let size = egui::vec2(1600., 1800.);
+        // The application shows the workspace in the central panel, not in a floating window.
+        ctx.data_mut(|d| d.insert_temp(egui::Id::new("central_workspaces"), true));
         let mut outputs = vec![];
-        for _ in 0..3 {
+        for frame in 0..3 {
             outputs.push(ctx.run(
                 egui::RawInput {
                     screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+                    time: Some(f64::from(frame) * 0.2),
                     ..Default::default()
                 },
                 |ctx| show(&mut app, ctx),
             ));
         }
-        let shapes = &outputs.last().unwrap().shapes;
-        assert!(crate::gui::test_render::text_center(shapes, "Export audit package").is_some());
-        assert!(
-            crate::gui::test_render::text_center(shapes, "Package options and evidence").is_some()
-        );
+        let shapes = outputs.last().unwrap().shapes.clone();
         if std::env::var_os("CHROMASCOPE_DELIVERY_PREVIEW").is_some() {
             crate::gui::test_render::save(
                 &ctx,
@@ -457,5 +456,9 @@ mod tests {
                 size,
             );
         }
+        assert!(crate::gui::test_render::text_center(&shapes, "Export audit package").is_some());
+        assert!(
+            crate::gui::test_render::text_center(&shapes, "Package options and evidence").is_some()
+        );
     }
 }

@@ -140,6 +140,7 @@ fn measurement(area: Option<f64>, ion: &Ion) -> quant::Measurement {
         automatic_status: status.clone(),
         status,
         diagnostic: String::new(),
+        boundary_decision: None,
     }
 }
 fn evidence(request: &BatchRequest) -> Vec<Observation> {

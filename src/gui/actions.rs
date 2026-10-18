@@ -543,14 +543,13 @@ pub const ACTIONS: &[Action] = &[
         "Prepare, load and decide on AI review proposals",
         "Audit package tab, Review AI proposals",
         &[
-            "Load MCP / saved review proposal…",
+            "Load a saved proposal file…",
             "Prepare reversal",
             "Prepare revised suggestion",
             "Preview and retain suggestion",
             "Save proposal and decisions…",
             "Evidence references (one per line)",
             "Revision-bound review operation",
-            "suggestion",
         ],
         &[
             "prepare_review_proposal",
@@ -758,6 +757,11 @@ pub const ACTIONS: &[Action] = &[
 
 /// Actions an AI deliberately cannot do.
 pub const WITHHELD: &[Withheld] = &[
+    Withheld {
+        name: "Approve or reject an AI proposal in the window",
+        labels: &["Approve", "Reject"],
+        reason: "Deciding on a proposal in Review AI proposals is the person's act: an AI that could approve its own proposal would make the review meaningless. The AI makes the proposal (prepare_review_proposal, queue_review_proposal, or review_quantification with propose=true); resolve_review_proposal decides one that is stored in a project, and only when the operator started the server with --allow-project-writes.",
+    },
     Withheld {
         name: "Choose the msconvert converter program",
         labels: &[

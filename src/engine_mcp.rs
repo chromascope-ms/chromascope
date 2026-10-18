@@ -223,7 +223,7 @@ pub fn workflow_recipes() -> Vec<serde_json::Value> {
     };
     vec![
         serde_json::json!({"name":"investigate_chromatographic_anomalies","prompt":"Investigate this unexpected peak without changing the original result.","operations":["metadata","extract","spectrum","process_chromatograms","evaluate_qc"],"review":"Compare unsmoothed evidence, baseline and flags; do not invent causes."}),
-        serde_json::json!({"name":"review_integration","prompt":"Preview alternative peak bounds and present both areas for review.","operations":["extract","process_chromatograms","revise_chromatogram"],"review":"Use preview=true first; retain original and corrected revisions with reasons."}),
+        serde_json::json!({"name":"review_integration","prompt":"Check the integration of a peak. If the boundaries look wrong, propose new ones with your reason and evidence; do not apply them.","operations":["extract","process_chromatograms","revise_chromatogram"],"tools":["prepare_review_proposal","queue_review_proposal"],"review":"Preview alternative bounds with preview=true, then propose instead of applying: prepare_review_proposal for engine results (in the chromascope-mcp window, review_quantification with propose=true proposes the peak boundaries of a batch). The person approves or rejects the proposal in the window under Audit package, Review AI proposals; you never approve it yourself."}),
         serde_json::json!({"name":"construct_calibration","prompt":"Build a weighted calibration from my standards and quantify unknowns.","operations":["targeted_batch","evaluate_targeted_qc","review_targeted","export_targeted"],"review":"Declare units, roles, range, dilution, weighting and thresholds; review accuracy, qualifiers and missing states."}),
         serde_json::json!({"name":"troubleshoot_qc","prompt":"Explain QC failures using recorded evidence and identify missing measurements.","operations":["evaluate_targeted_qc","evaluate_qc","review_qc","export_qc"],"review":"Acknowledgement does not erase failures; required absent evidence remains indeterminate."}),
         serde_json::json!({"name":"compare_processing_methods","prompt":"Compare two processing configurations on the same raw chromatogram.","operations":["extract","process_chromatograms","quantify","validate_method"],"review":"Run separate jobs with frozen parameters; compare evidence and units, not explanations alone."}),
@@ -849,7 +849,7 @@ impl EngineMcp {
         })())
     }
     #[tool(
-        description = "Prepare a revision-bound review suggestion with original and proposed values, reason and evidence references; nothing is modified.",
+        description = "Prepare a revision-bound review suggestion with original and proposed values, reason and evidence references; nothing is modified. To propose rather than apply, use this: the person approves it in the chromascope-mcp window (Audit package, Review AI proposals). Batch peaks: review_quantification propose=true.",
         annotations(
             read_only_hint = true,
             destructive_hint = false,
@@ -897,7 +897,7 @@ impl EngineMcp {
             let mut project = crate::project::Project::open(&root)?;
             let proposal: crate::proposals::Proposal = serde_json::from_value(args.proposal)
                 .map_err(|e| EngineError::new("invalid_parameters", e))?;
-            self.authorize_request(&proposal.request)?;
+            self.authorize_request(proposal.engine_request()?)?;
             if proposal.expected_project_revision != Some(project.revision) {
                 return Err(EngineError::new(
                     "stale_revision",
@@ -961,7 +961,7 @@ impl EngineMcp {
         })())
     }
     #[tool(
-        description = "Retain a pending review suggestion in a shared project without applying it. Requires --allow-project-writes and unchanged revisions.",
+        description = "Retain a pending review suggestion in a project without applying it; review it later, also in chromascope.exe, by opening the project. Requires --allow-project-writes and unchanged revisions.",
         annotations(
             read_only_hint = false,
             destructive_hint = false,
@@ -994,7 +994,7 @@ impl EngineMcp {
                     "Proposal identity is already retained; prepare a new suggestion",
                 ));
             }
-            self.authorize_request(&supplied.request)?;
+            self.authorize_request(supplied.engine_request()?)?;
             let dataset = crate::domain::DatasetId(
                 uuid::Uuid::parse_str(&args.dataset_id)
                     .map_err(|e| EngineError::new("invalid_parameters", e))?,
@@ -1033,7 +1033,7 @@ impl EngineMcp {
             )?;
             let mut pending = crate::proposals::prepare(
                 &path,
-                supplied.request,
+                supplied.engine_request()?.clone(),
                 Some(revision.checked_add(1).ok_or_else(|| {
                     EngineError::new("resource_limit", "Project revision is exhausted")
                 })?),

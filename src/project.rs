@@ -245,6 +245,7 @@ impl Project {
         }
         let mut proposal_ids = std::collections::HashSet::new();
         for proposal in &self.review_proposals {
+            proposal.check_shape()?;
             if proposal.version != 1
                 || !proposal_ids.insert(proposal.id)
                 || !valid_hash(&proposal.before_sha256)
@@ -704,12 +705,13 @@ mod validation_tests {
         crate::proposals::Proposal {
             version: 1,
             id: uuid::Uuid::new_v4(),
-            request: Request {
+            request: Some(Request {
                 version: 1,
                 operation_id: OperationId::default(),
                 actor: "test".into(),
                 operation: Operation::Metadata,
-            },
+            }),
+            peak_edit: None,
             expected_project_revision: Some(0),
             before: serde_json::json!({}),
             before_sha256: hash('b'),
@@ -832,6 +834,9 @@ mod validation_tests {
         let mut p = valid();
         p.review_proposals[0].version = 2;
         rejected(&p, "proposal identity");
+        let mut p = valid();
+        p.review_proposals[0].request = None;
+        rejected(&p, "either an engine request or a peak edit");
     }
 
     #[test]

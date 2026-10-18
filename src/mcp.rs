@@ -303,6 +303,15 @@ pub enum Command {
         end_minutes: Option<f64>,
         #[serde(default)]
         reviewed: bool,
+        /// Propose the boundaries instead of applying them.
+        #[serde(default)]
+        propose: bool,
+        #[serde(default)]
+        dataset_id: Option<DatasetRef>,
+        #[serde(default)]
+        reason: Option<String>,
+        #[serde(default)]
+        evidence: Vec<String>,
     },
 }
 impl Command {
@@ -325,6 +334,7 @@ impl Command {
             | Command::SetTraceVisibility { dataset_id, .. }
             | Command::ExportCsv { dataset_id, .. } => vec![dataset_id],
             Command::StartQuantification { dataset_ids, .. } => dataset_ids.iter_mut().collect(),
+            Command::ReviewQuantification { dataset_id, .. } => dataset_id.iter_mut().collect(),
             _ => vec![],
         }
     }
@@ -601,6 +611,9 @@ pub(crate) enum Internal {
         job_id: String,
         response: Box<Value>,
     },
+    /// A review proposal the engine just made, for the person to approve or reject in the
+    /// Audit package. Showing a proposal changes no result.
+    Proposal(Box<crate::proposals::Proposal>),
 }
 /// Whether an analysis started over MCP is visible in the window.
 #[derive(Debug, Clone, Serialize)]
@@ -891,6 +904,29 @@ impl McpServer {
             if failed { Err(&message) } else { Ok(()) },
         )));
         if !failed {
+            // A proposal the engine made goes to the window's review list. It travels the
+            // private channel, so a client cannot put anything there that the engine did not
+            // produce itself.
+            if matches!(
+                name.as_str(),
+                "prepare_review_proposal" | "queue_review_proposal"
+            ) {
+                let content = reply.structured_content.as_ref();
+                let proposal = content
+                    .map(|v| {
+                        if name == "queue_review_proposal" {
+                            &v["proposal"]
+                        } else {
+                            v
+                        }
+                    })
+                    .and_then(|v| {
+                        serde_json::from_value::<crate::proposals::Proposal>(v.clone()).ok()
+                    });
+                if let Some(proposal) = proposal {
+                    self.tell_window(Internal::Proposal(Box::new(proposal)));
+                }
+            }
             let started = (name == "start_analysis")
                 .then_some(reply.structured_content.as_ref())
                 .flatten()
@@ -1066,6 +1102,16 @@ pub struct ReviewQuantificationArgs {
     pub end_minutes: Option<f64>,
     #[serde(default)]
     pub reviewed: bool,
+    /// true: change nothing, propose these boundaries (needs reason and evidence).
+    #[serde(default)]
+    pub propose: bool,
+    /// With propose: the result's dataset (checked).
+    pub dataset_id: Option<DatasetRef>,
+    /// With propose: why the boundaries should change.
+    pub reason: Option<String>,
+    /// With propose: what you looked at.
+    #[serde(default)]
+    pub evidence: Vec<String>,
 }
 
 #[tool_router]
@@ -1545,7 +1591,7 @@ impl McpServer {
     }
 
     #[tool(
-        description = "Correct one batch result's peak with start_minutes and end_minutes (area and status recomputed, automatic result kept). Marking reviewed is refused: a person does that. Requires --allow-changes.",
+        description = "Correct one batch result's peak with start_minutes and end_minutes (area recomputed, automatic result kept; requires --allow-changes). propose=true changes nothing: it makes a proposal (dataset_id, reason, evidence) that the person approves in Audit package, Review AI proposals. Marking reviewed is refused: a person does that.",
         annotations(
             read_only_hint = false,
             destructive_hint = true,
@@ -1561,12 +1607,20 @@ impl McpServer {
             start_minutes,
             end_minutes,
             reviewed,
+            propose,
+            dataset_id,
+            reason,
+            evidence,
         } = args;
         self.dispatch(Command::ReviewQuantification {
             result_index,
             start_minutes,
             end_minutes,
             reviewed,
+            propose,
+            dataset_id,
+            reason,
+            evidence,
         })
         .await
     }
@@ -2233,7 +2287,7 @@ impl ServerHandler for McpServer {
                 .build(),
         )
             .with_server_info(Implementation::new("chromascope", env!("CARGO_PKG_VERSION")))
-            .with_instructions(format!("{}{}", "One server for everything the person sees in the window. Inspect datasets first (list_datasets, gui_state). Use the typed viewer tools to open data, extract and integrate; start_analysis runs calibration, quantification and QC on the shared engine and, when launched with --allow-changes, shows the finished result in the Quantification tab (analysis_status says whether it did). Retrieve bounded numerical pages for quantitation; images aid visual review. Read-only unless explicitly enabled at launch (--allow-changes, --allow-exports, --allow-project-writes). AI interpretations are external to measured results.", self.profile_note()))
+            .with_instructions(format!("{}{}", "One server for everything the person sees in the window. Inspect datasets first (list_datasets, gui_state). Use the typed viewer tools to open data, extract and integrate; start_analysis runs calibration, quantification and QC on the shared engine and, when launched with --allow-changes, shows the finished result in the Quantification tab (analysis_status says whether it did). Retrieve bounded numerical pages for quantitation; images aid visual review. Read-only unless explicitly enabled at launch (--allow-changes, --allow-exports, --allow-project-writes). AI interpretations are external to measured results. When the user asks you to propose rather than apply a change, use prepare_review_proposal for engine results or review_quantification with propose=true for batch peak boundaries; the person approves it in the window under Audit package, Review AI proposals, and you never approve your own proposal.", self.profile_note()))
     }
 }
 

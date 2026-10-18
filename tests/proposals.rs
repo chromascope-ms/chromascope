@@ -268,3 +268,168 @@ fn actual_mcp_prepares_the_same_revision_bound_suggestion() {
     child.kill().unwrap();
     child.wait().unwrap();
 }
+
+fn boundary_proposal() -> proposals::Proposal {
+    let bounds = |start, end, area| proposals::PeakBounds {
+        start: Some(start),
+        end: Some(end),
+        area: Some(area),
+    };
+    proposals::peak_edit_proposal(
+        proposals::PeakEdit {
+            proposer: "chromascope-mcp".into(),
+            dataset_stable_id: Some("sha256:ab".into()),
+            result_index: 2,
+            sample: "run 3".into(),
+            analyte: "caffeine".into(),
+            original: bounds(1.0, 2.0, 10.0),
+            proposed: bounds(1.2, 1.9, 8.0),
+        },
+        serde_json::json!({"peak":{"start":1.0,"end":2.0,"area":10.0}}),
+        serde_json::json!({"peak":{"start":1.2,"end":1.9,"area":8.0}}),
+        "The tail was included".into(),
+        vec!["trace at 1.95 min is baseline".into()],
+    )
+    .unwrap()
+}
+#[test]
+fn a_boundary_proposal_needs_reason_evidence_and_increasing_boundaries() {
+    let pending = boundary_proposal();
+    assert!(pending.request.is_none() && pending.peak_edit.is_some());
+    assert!(pending.events.is_empty() && pending.applied.is_none());
+    pending.check_shape().unwrap();
+    assert_eq!(pending.proposer(), "chromascope-mcp");
+    let mut edit = pending.peak_edit.clone().unwrap();
+    for (reason, evidence) in [
+        ("", vec!["e".to_string()]),
+        ("why", vec![]),
+        ("why", vec!["  ".to_string()]),
+    ] {
+        let error = proposals::peak_edit_proposal(
+            edit.clone(),
+            pending.before.clone(),
+            pending.proposed.clone(),
+            reason.into(),
+            evidence,
+        )
+        .err()
+        .expect("reason and evidence are required");
+        assert!(error.message.contains("reason and evidence"), "{error}");
+    }
+    for (start, end) in [(2.0, 1.0), (1.0, 1.0), (f64::NAN, 2.0)] {
+        edit.proposed.start = Some(start);
+        edit.proposed.end = Some(end);
+        assert!(proposals::peak_edit_proposal(
+            edit.clone(),
+            pending.before.clone(),
+            pending.proposed.clone(),
+            "why".into(),
+            vec!["e".into()]
+        )
+        .is_err());
+    }
+}
+#[test]
+fn a_person_decides_a_boundary_proposal_once_and_never_on_changed_evidence() {
+    let pending = boundary_proposal();
+    let approved =
+        proposals::resolve_peak_edit(&pending, &pending.before, true, "dr. reviewer", "I agree")
+            .unwrap();
+    assert_eq!(approved.events.len(), 1);
+    assert_eq!(approved.events[0].decision, "approved");
+    assert_eq!(approved.events[0].actor, "dr. reviewer");
+    assert_eq!(approved.events[0].reason, "I agree");
+    assert_eq!(approved.applied.as_ref().unwrap()["start"], 1.2);
+    assert_eq!(
+        approved.applied.as_ref().unwrap()["approved_by"],
+        "dr. reviewer"
+    );
+    assert!(
+        pending.events.is_empty(),
+        "the suggestion itself is immutable"
+    );
+    let rejected =
+        proposals::resolve_peak_edit(&pending, &pending.before, false, "dr. reviewer", "No")
+            .unwrap();
+    assert_eq!(rejected.events[0].decision, "rejected");
+    assert!(rejected.applied.is_none());
+    // Refused: the proposer deciding, no reason, a second decision, changed evidence.
+    let error = |result: chromascope::domain::Result<proposals::Proposal>| {
+        result.err().expect("must be refused")
+    };
+    assert!(error(proposals::resolve_peak_edit(
+        &pending,
+        &pending.before,
+        true,
+        "chromascope-mcp",
+        "self approval"
+    ))
+    .message
+    .contains("proposer"));
+    assert!(error(proposals::resolve_peak_edit(
+        &pending,
+        &pending.before,
+        true,
+        "dr. reviewer",
+        "  "
+    ))
+    .message
+    .contains("reason"));
+    assert!(error(proposals::resolve_peak_edit(
+        &approved,
+        &pending.before,
+        false,
+        "dr. reviewer",
+        "again"
+    ))
+    .message
+    .contains("once"));
+    let mut changed = pending.before.clone();
+    changed["peak"]["end"] = serde_json::json!(2.5);
+    let stale = error(proposals::resolve_peak_edit(
+        &pending,
+        &changed,
+        true,
+        "dr. reviewer",
+        "I agree",
+    ));
+    assert_eq!(stale.code, "stale_revision");
+    // The engine path does not apply a boundary proposal.
+    let engine = proposals::resolve(
+        std::path::Path::new("-"),
+        &pending,
+        &pending.before,
+        None,
+        true,
+        "dr. reviewer",
+        "I agree",
+        &JobControl::default(),
+    )
+    .err()
+    .expect("only the window applies boundaries");
+    assert!(engine.message.contains("window"), "{engine}");
+}
+#[test]
+fn a_proposal_carries_exactly_one_kind_of_change_and_survives_json() {
+    let pending = boundary_proposal();
+    let text = serde_json::to_string(&pending).unwrap();
+    let again: proposals::Proposal = serde_json::from_str(&text).unwrap();
+    assert_eq!(again.peak_edit, pending.peak_edit);
+    assert!(again.request.is_none());
+    assert!(
+        !text.contains("\"request\""),
+        "an absent request is not written"
+    );
+    // An engine proposal written before boundary proposals existed still reads.
+    let engine = proposal();
+    let old: proposals::Proposal =
+        serde_json::from_str(&serde_json::to_string(&engine).unwrap()).unwrap();
+    assert!(old.request.is_some() && old.peak_edit.is_none());
+    old.check_shape().unwrap();
+    let mut both = old.clone();
+    both.peak_edit = pending.peak_edit.clone();
+    assert!(both.check_shape().is_err());
+    let mut neither = old;
+    neither.request = None;
+    assert!(neither.check_shape().is_err());
+}

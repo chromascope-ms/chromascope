@@ -174,7 +174,7 @@ impl Desktop {
     }
 }
 
-fn start_request(operation: crate::domain::Operation) -> Value {
+pub(super) fn start_request(operation: crate::domain::Operation) -> Value {
     serde_json::to_value(crate::domain::Request {
         version: 1,
         operation_id: Default::default(),
@@ -184,7 +184,7 @@ fn start_request(operation: crate::domain::Operation) -> Value {
     .unwrap()
 }
 
-fn wait_for_job(desktop: &mut Desktop, id: &str) -> Value {
+pub(super) fn wait_for_job(desktop: &mut Desktop, id: &str) -> Value {
     for _ in 0..2000 {
         let status = desktop.tool("analysis_status", json!({"job_id":id}));
         match status["state"].as_str().unwrap() {

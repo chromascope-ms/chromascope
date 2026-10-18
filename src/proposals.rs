@@ -16,12 +16,44 @@ pub struct Event {
     pub decision: String,
     pub unix_ms: u64,
 }
+/// The start, end and area of one integrated peak.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PeakBounds {
+    pub start: Option<f64>,
+    pub end: Option<f64>,
+    pub area: Option<f64>,
+}
+/// New peak boundaries for one result of a batch quantification (a row of the Quantification
+/// and QC table). The result lives in the window rather than in an engine response, so the
+/// window applies the change when a person approves it, exactly as it applies a manual
+/// boundary edit.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PeakEdit {
+    /// Who made the proposal (the MCP server, on behalf of an AI client).
+    pub proposer: String,
+    /// `sha256:` plus the SHA-256 of the dataset's source file, when the window knew it.
+    pub dataset_stable_id: Option<String>,
+    /// Position in the results of the batch when the proposal was made.
+    pub result_index: usize,
+    pub sample: String,
+    pub analyte: String,
+    pub original: PeakBounds,
+    pub proposed: PeakBounds,
+}
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Proposal {
     pub version: u32,
     pub id: uuid::Uuid,
-    pub request: Request,
+    /// The engine operation approval runs. Absent for a peak-boundary proposal (see
+    /// [`PeakEdit`]), which the window applies itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request: Option<Request>,
+    /// Set for a proposal of new peak boundaries; exactly one of `request` and `peak_edit`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub peak_edit: Option<PeakEdit>,
     pub expected_project_revision: Option<u64>,
     pub before: Value,
     pub before_sha256: String,
@@ -33,6 +65,31 @@ pub struct Proposal {
 }
 fn invalid(message: impl ToString) -> EngineError {
     EngineError::new("invalid_parameters", message)
+}
+impl Proposal {
+    /// Exactly one of the engine request and the peak edit is present.
+    pub fn check_shape(&self) -> Result<()> {
+        match (&self.request, &self.peak_edit) {
+            (Some(_), None) | (None, Some(_)) => Ok(()),
+            _ => Err(invalid(
+                "A proposal carries either an engine request or a peak edit",
+            )),
+        }
+    }
+    /// Who made the proposal.
+    pub fn proposer(&self) -> &str {
+        match (&self.request, &self.peak_edit) {
+            (Some(request), _) => &request.actor,
+            (None, Some(edit)) => &edit.proposer,
+            _ => "unknown",
+        }
+    }
+    /// The engine request, or the reason this proposal has none.
+    pub fn engine_request(&self) -> Result<&Request> {
+        self.request.as_ref().ok_or_else(|| {
+            invalid("This proposal changes peak boundaries in a window; approve it in the window that holds the batch")
+        })
+    }
 }
 pub fn same_subject(value: &Value, before: &Value) -> bool {
     for key in ["batch_id", "report_id", "id"] {
@@ -92,6 +149,106 @@ pub fn before(operation: &Operation) -> Result<Value> {
     };
     value.map_err(invalid)
 }
+/// SHA-256 of a value's JSON text, as stored in `before_sha256`.
+pub fn hash_value(value: &Value) -> Result<String> {
+    hash(value)
+}
+fn check_reason(reason: &str, evidence: &[String]) -> Result<()> {
+    if reason.trim().is_empty()
+        || evidence.is_empty()
+        || evidence.iter().any(|x| x.trim().is_empty())
+    {
+        return Err(invalid(
+            "Proposal reason and evidence references are required",
+        ));
+    }
+    Ok(())
+}
+/// A proposal of new peak boundaries for a batch quantification result. `before` is the
+/// result as the window holds it (see the window's snapshot of a result) and `proposed` the
+/// same with the new peak; approval is refused unless the result still equals `before`.
+pub fn peak_edit_proposal(
+    edit: PeakEdit,
+    before: Value,
+    proposed: Value,
+    reason: String,
+    evidence: Vec<String>,
+) -> Result<Proposal> {
+    check_reason(&reason, &evidence)?;
+    if edit
+        .proposed
+        .start
+        .zip(edit.proposed.end)
+        .is_none_or(|(a, z)| !(a.is_finite() && z.is_finite() && a < z))
+    {
+        return Err(invalid("A proposal needs finite, increasing boundaries"));
+    }
+    Ok(Proposal {
+        version: 1,
+        id: uuid::Uuid::new_v4(),
+        request: None,
+        peak_edit: Some(edit),
+        expected_project_revision: None,
+        before_sha256: hash(&before)?,
+        before,
+        proposed,
+        reason,
+        evidence,
+        events: vec![],
+        applied: None,
+    })
+}
+/// Records a person's decision on a peak-boundary proposal. Returns the updated proposal; the
+/// caller applies the boundaries on approval. Refused when the result is not what it was when
+/// the proposal was made, when the deciding actor is the proposer, or when a decision exists.
+pub fn resolve_peak_edit(
+    proposal: &Proposal,
+    current: &Value,
+    approve: bool,
+    actor: &str,
+    reason: &str,
+) -> Result<Proposal> {
+    let edit = proposal
+        .peak_edit
+        .as_ref()
+        .ok_or_else(|| invalid("Not a peak-boundary proposal"))?;
+    if proposal.version != 1 || actor.trim().is_empty() || reason.trim().is_empty() {
+        return Err(invalid("Version 1, review actor and reason are required"));
+    }
+    if actor == edit.proposer {
+        return Err(invalid("A proposal cannot be decided by its proposer"));
+    }
+    if !proposal.events.is_empty() {
+        return Err(invalid(
+            "Resolve a pending proposal once; prepare a new revision to change the decision",
+        ));
+    }
+    if current != &proposal.before || hash(current)? != proposal.before_sha256 {
+        return Err(EngineError::new(
+            "stale_revision",
+            "The result changed after the proposal was made; ask for a new proposal",
+        ));
+    }
+    let mut updated = proposal.clone();
+    if approve {
+        updated.applied = Some(serde_json::json!({
+            "start": edit.proposed.start,
+            "end": edit.proposed.end,
+            "area": edit.proposed.area,
+            "approved_by": actor,
+        }));
+    }
+    updated.events.push(Event {
+        actor: actor.into(),
+        reason: reason.into(),
+        decision: if approve { "approved" } else { "rejected" }.into(),
+        unix_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+    });
+    Ok(updated)
+}
 fn hash(value: &Value) -> Result<String> {
     Ok(format!(
         "{:x}",
@@ -138,14 +295,7 @@ pub fn prepare(
     control: &JobControl,
 ) -> Result<Proposal> {
     request.operation.ensure_available()?;
-    if reason.trim().is_empty()
-        || evidence.is_empty()
-        || evidence.iter().any(|x| x.trim().is_empty())
-    {
-        return Err(invalid(
-            "Proposal reason and evidence references are required",
-        ));
-    }
+    check_reason(&reason, &evidence)?;
     if matches!(
         request.operation,
         Operation::ReviseChromatogram { preview: true, .. }
@@ -159,7 +309,8 @@ pub fn prepare(
     Ok(Proposal {
         version: 1,
         id: uuid::Uuid::new_v4(),
-        request,
+        request: Some(request),
+        peak_edit: None,
         expected_project_revision: revision,
         before_sha256: hash(&original)?,
         before: original,
@@ -184,7 +335,8 @@ pub fn resolve(
     reason: &str,
     control: &JobControl,
 ) -> Result<(Proposal, Option<Response>)> {
-    proposal.request.operation.ensure_available()?;
+    let request = proposal.engine_request()?;
+    request.operation.ensure_available()?;
     if proposal.version != 1 || actor.trim().is_empty() || reason.trim().is_empty() {
         return Err(invalid("Version 1, review actor and reason are required"));
     }
@@ -195,7 +347,7 @@ pub fn resolve(
     }
     if proposal.expected_project_revision != revision
         || current != &proposal.before
-        || hash(&before(&proposal.request.operation)?)? != proposal.before_sha256
+        || hash(&before(&request.operation)?)? != proposal.before_sha256
         || hash(current)? != proposal.before_sha256
     {
         return Err(EngineError::new(
@@ -205,7 +357,7 @@ pub fn resolve(
     }
     let mut updated = proposal.clone();
     let response = if approve {
-        let mut request = proposal.request.clone();
+        let mut request = request.clone();
         request.actor = actor.into();
         let response = crate::engine::execute(path, request, control)?;
         if semantic_review(&reviewed_value(&response.output)?, &proposal.before)
@@ -240,7 +392,7 @@ pub fn reversal(proposal: &Proposal, actor: &str, reason: &str) -> Result<Reques
             .ok_or_else(|| invalid("Only applied proposals can be reversed"))?,
     )
     .map_err(invalid)?;
-    let operation = match (&proposal.request.operation, response.output) {
+    let operation = match (&proposal.engine_request()?.operation, response.output) {
         (
             Operation::ReviewTargeted {
                 batch,

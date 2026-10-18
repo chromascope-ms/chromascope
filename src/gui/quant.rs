@@ -291,6 +291,93 @@ fn select(q: &mut QuantState, i: usize) {
         q.end = b[0];
     }
 }
+/// A result as a proposal of new peak boundaries sees it. Two snapshots are equal only when the
+/// sample, the analyte, the method it was measured under, the trace and the peak are all the
+/// same, so a proposal made for one state of a result can never be approved for another.
+pub(super) fn peak_snapshot(
+    r: &Measurement,
+    peak: Option<&crate::quant::Peak>,
+    status: &Status,
+) -> serde_json::Value {
+    let digest = |text: String| {
+        use sha2::{Digest, Sha256};
+        format!("{:x}", Sha256::digest(text.as_bytes()))
+    };
+    serde_json::json!({
+        "kind": "peak_boundaries",
+        "sample": r.sample,
+        "analyte": r.analyte,
+        "method_sha256": digest(r.method.clone()),
+        "trace_points": r.trace.len(),
+        "trace_sha256": digest(serde_json::to_string(&r.trace).unwrap_or_default()),
+        "status": status,
+        "peak": peak,
+    })
+}
+/// The result a peak-boundary proposal is about, as it is now: the one at the proposal's
+/// position when it still has the sample and analyte, else any result of that sample and
+/// analyte. `None` when the batch holds no such result any more.
+pub(super) fn current_peak_state(
+    q: &QuantState,
+    edit: &crate::proposals::PeakEdit,
+) -> Option<(usize, serde_json::Value)> {
+    let matches = |r: &Measurement| r.sample == edit.sample && r.analyte == edit.analyte;
+    let index = q
+        .results
+        .get(edit.result_index)
+        .filter(|r| matches(r))
+        .map(|_| edit.result_index)
+        .or_else(|| q.results.iter().position(matches))?;
+    let r = &q.results[index];
+    Some((index, peak_snapshot(r, r.peak.as_ref(), &r.status)))
+}
+/// Applies approved boundaries exactly as a person's manual boundary edit does (the peak is
+/// integrated again with the analyte's own settings and the status becomes Manual; the
+/// automatic peak stays), and records who approved them and why.
+pub(super) fn apply_peak_edit(
+    q: &mut QuantState,
+    index: usize,
+    edit: &crate::proposals::PeakEdit,
+    decision: crate::quant::BoundaryDecision,
+) -> Result<(), String> {
+    if q.rx.is_some() {
+        return Err("Wait for the batch to finish".into());
+    }
+    let (Some(start), Some(end)) = (edit.proposed.start, edit.proposed.end) else {
+        return Err("The proposal has no boundaries".into());
+    };
+    let method = q.method.clone();
+    let r = q
+        .results
+        .get(index)
+        .ok_or("The result is no longer in the batch")?;
+    if fresh(&method).stale(r) {
+        return Err(
+            "The method changed after the proposal was made; rerun before reviewing".into(),
+        );
+    }
+    let analyte = method
+        .analytes
+        .iter()
+        .find(|a| a.extraction.name == r.analyte)
+        .ok_or("The result's analyte is absent from the method")?;
+    let peak = measure_for(&r.trace, start, end, analyte, &method)?;
+    if let Some(proposed) = edit.proposed.area {
+        if (peak.area - proposed).abs() > 1e-9 * proposed.abs().max(1.0) {
+            return Err(
+                "The area differs from the one that was proposed; ask for a new proposal".into(),
+            );
+        }
+    }
+    let r = &mut q.results[index];
+    r.peak = Some(peak);
+    r.status = Status::Manual;
+    r.boundary_decision = Some(decision);
+    select(q, index);
+    q.message =
+        "Boundaries from an approved AI proposal applied. Save the batch to keep them.".into();
+    Ok(())
+}
 fn run(app: &mut MzViewerApp) -> Result<(), String> {
     if app.quant.rx.is_some() {
         return Err("A batch is already running.".into());
@@ -379,6 +466,7 @@ fn run(app: &mut MzViewerApp) -> Result<(), String> {
             automatic_status: Status::Pending,
             status: Status::Pending,
             diagnostic: "Awaiting extraction.".into(),
+            boundary_decision: None,
         };
         if let Some(i) = q.results.iter().position(|r| {
             r.source == *source && r.sample == *sample && r.analyte == a.extraction.name
@@ -413,6 +501,7 @@ fn run(app: &mut MzViewerApp) -> Result<(), String> {
                 status: Status::Failed,
                 automatic_status: Status::Failed,
                 diagnostic: String::new(),
+                boundary_decision: None,
             };
             match processing::run_in_background(path.into(), params, 0) {
                 ProcessingResult::Success { plot_data, .. } => {
@@ -1662,6 +1751,18 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
                 .peak
                 .as_ref()
                 .is_none_or(|p| p.start != q.start || p.end != q.end);
+            if let Some(decision) = &q.results[i].boundary_decision {
+                ui.colored_label(
+                    Tokens::of(ui).info,
+                    format!(
+                        "Boundaries from an AI proposal ({}: {}), approved by {}: {}",
+                        decision.proposed_by,
+                        decision.proposal_reason,
+                        decision.approved_by,
+                        decision.approval_reason
+                    ),
+                );
+            }
             if let Some(p) = &q.results[i].peak {
                 ui.horizontal(|ui| {
                     metric(ui, "Area (a.u.·min)", format!("{:.4e}", p.area));
@@ -1856,6 +1957,7 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
     if reset {
         q.results[i].peak = q.results[i].automatic.clone();
         q.results[i].status = q.results[i].automatic_status.clone();
+        q.results[i].boundary_decision = None;
         select(q, i);
     }
     if apply {
@@ -1873,6 +1975,7 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
             Ok(peak) => {
                 q.results[i].peak = Some(peak);
                 q.results[i].status = Status::Manual;
+                q.results[i].boundary_decision = None;
                 q.message =
                     "Manual integration saved in this batch. Save batch to retain it on disk."
                         .into();
@@ -1908,7 +2011,7 @@ pub(super) fn remote_start(
 #[cfg(feature = "mcp")]
 pub(super) fn remote_status(app: &MzViewerApp) -> serde_json::Value {
     let q = &app.quant;
-    serde_json::json!({"job_id":format!("quantification:{}",q.remote_job_id),"running":q.rx.is_some(),"completed":q.completed,"total":q.total,"message":q.message,"method":signature(&q.method),"results":q.results.iter().enumerate().map(|(i,r)|serde_json::json!({"result_index":i,"sample":r.sample,"source":r.source,"run":r.run,"analyte":r.analyte,"parameters":r.params,"method":r.method,"automatic":r.automatic,"peak":r.peak,"automatic_status":r.automatic_status,"status":r.status,"diagnostic":r.diagnostic,"review":r.review().label(),"needs_review":r.needs_review(),"confidence":r.quality,"point_count":r.trace.len()})).collect::<Vec<_>>()})
+    serde_json::json!({"job_id":format!("quantification:{}",q.remote_job_id),"running":q.rx.is_some(),"completed":q.completed,"total":q.total,"message":q.message,"method":signature(&q.method),"results":q.results.iter().enumerate().map(|(i,r)|serde_json::json!({"result_index":i,"sample":r.sample,"source":r.source,"run":r.run,"analyte":r.analyte,"parameters":r.params,"method":r.method,"automatic":r.automatic,"peak":r.peak,"automatic_status":r.automatic_status,"status":r.status,"diagnostic":r.diagnostic,"review":r.review().label(),"boundary_decision":r.boundary_decision,"needs_review":r.needs_review(),"confidence":r.quality,"point_count":r.trace.len()})).collect::<Vec<_>>()})
 }
 #[cfg(feature = "mcp")]
 pub(super) fn remote_cancel(app: &MzViewerApp) {
@@ -1954,6 +2057,7 @@ pub(super) fn remote_review(
                 .ok_or("Result analyte is absent from the method.")?;
             r.peak = Some(measure_for(&r.trace, a, z, analyte, &method)?);
             r.status = Status::Manual;
+            r.boundary_decision = None;
         }
         (None, None) => {}
         _ => return Err("Both boundaries are required".into()),
@@ -1962,6 +2066,79 @@ pub(super) fn remote_review(
     Ok(())
 }
 
+/// An AI's proposal of new boundaries for one result. Changes nothing: the proposal waits in the
+/// window for a person to approve or reject it.
+#[cfg(feature = "mcp")]
+pub(super) struct PeakProposalRequest<'a> {
+    pub index: usize,
+    /// The dataset the result must belong to, as the window numbers it.
+    pub dataset: Option<usize>,
+    pub dataset_stable_id: Option<String>,
+    pub start: f64,
+    pub end: f64,
+    pub reason: &'a str,
+    pub evidence: &'a [String],
+    pub proposer: &'a str,
+}
+#[cfg(feature = "mcp")]
+pub(super) fn remote_propose(
+    app: &MzViewerApp,
+    request: PeakProposalRequest,
+) -> Result<crate::proposals::Proposal, String> {
+    if app.quant.rx.is_some() {
+        return Err("Wait for batch completion".into());
+    }
+    let r = app
+        .quant
+        .results
+        .get(request.index)
+        .ok_or("Unknown result index")?;
+    if let Some(id) = request.dataset {
+        let file = app.files.get(&id).ok_or("Unknown dataset")?;
+        let source = file.cache.source_path.as_deref().unwrap_or(&file.path);
+        if r.source != source || r.sample != file.name {
+            return Err(format!(
+                "Result {} belongs to {} ({}), not to dataset {id} ({}); quantification_status lists which sample each result_index is",
+                request.index, r.sample, r.source, file.name
+            ));
+        }
+    }
+    let method = &app.quant.method;
+    if fresh(method).stale(r) {
+        return Err("Method changed; rerun before proposing".into());
+    }
+    if !request.start.is_finite() || !request.end.is_finite() {
+        return Err("Finite boundaries required".into());
+    }
+    let analyte = method
+        .analytes
+        .iter()
+        .find(|x| x.extraction.name == r.analyte)
+        .ok_or("Result analyte is absent from the method.")?;
+    let proposed_peak = measure_for(&r.trace, request.start, request.end, analyte, method)?;
+    let bounds = |p: Option<&crate::quant::Peak>| crate::proposals::PeakBounds {
+        start: p.map(|p| p.start),
+        end: p.map(|p| p.end),
+        area: p.map(|p| p.area),
+    };
+    let edit = crate::proposals::PeakEdit {
+        proposer: request.proposer.into(),
+        dataset_stable_id: request.dataset_stable_id,
+        result_index: request.index,
+        sample: r.sample.clone(),
+        analyte: r.analyte.clone(),
+        original: bounds(r.peak.as_ref()),
+        proposed: bounds(Some(&proposed_peak)),
+    };
+    crate::proposals::peak_edit_proposal(
+        edit,
+        peak_snapshot(r, r.peak.as_ref(), &r.status),
+        peak_snapshot(r, Some(&proposed_peak), &Status::Manual),
+        request.reason.to_owned(),
+        request.evidence.to_vec(),
+    )
+    .map_err(|e| e.message)
+}
 #[cfg(feature = "mcp")]
 pub(super) fn remote_trace(
     app: &MzViewerApp,
@@ -1996,6 +2173,7 @@ pub(super) fn remote_reset(app: &mut MzViewerApp, index: usize) -> Result<(), St
         .ok_or("Unknown result index")?;
     r.peak = r.automatic.clone();
     r.status = r.automatic_status.clone();
+    r.boundary_decision = None;
     select(&mut app.quant, index);
     Ok(())
 }
@@ -2351,6 +2529,7 @@ mod tests {
             automatic_status: status.clone(),
             status,
             diagnostic: String::new(),
+            boundary_decision: None,
         }
     }
     #[test]

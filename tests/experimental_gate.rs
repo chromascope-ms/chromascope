@@ -67,7 +67,8 @@ fn proposals_reject_experimental_operations() {
     let proposal = Proposal {
         version: 1,
         id: uuid::Uuid::new_v4(),
-        request: experimental_request(),
+        request: Some(experimental_request()),
+        peak_edit: None,
         expected_project_revision: None,
         before: serde_json::json!({}),
         before_sha256: String::new(),

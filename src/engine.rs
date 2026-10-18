@@ -629,6 +629,7 @@ pub fn execute_ungated(path: &Path, request: Request, control: &JobControl) -> R
                         automatic_status: status.clone(),
                         status,
                         diagnostic: String::new(),
+                        boundary_decision: None,
                     });
                 }
                 Output::Quantification {

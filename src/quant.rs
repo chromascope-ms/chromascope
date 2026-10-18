@@ -159,6 +159,19 @@ pub enum Status {
     Reviewed,
     Failed,
 }
+/// Boundaries an AI proposed and a person approved: who proposed them and why, who approved
+/// them and why. The automatic peak stays in [`Measurement::automatic`].
+#[cfg_attr(feature = "mcp-headless", derive(rmcp::schemars::JsonSchema))]
+#[cfg_attr(feature = "mcp-headless", schemars(crate = "rmcp::schemars"))]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct BoundaryDecision {
+    pub proposal_id: String,
+    pub proposed_by: String,
+    pub proposal_reason: String,
+    pub approved_by: String,
+    pub approval_reason: String,
+    pub unix_ms: u64,
+}
 #[cfg_attr(feature = "mcp-headless", derive(rmcp::schemars::JsonSchema))]
 #[cfg_attr(feature = "mcp-headless", schemars(crate = "rmcp::schemars"))]
 #[derive(Clone, Serialize, Deserialize)]
@@ -180,6 +193,10 @@ pub struct Measurement {
     pub automatic_status: Status,
     pub status: Status,
     pub diagnostic: String,
+    /// Set when the current boundaries are an approved AI proposal; cleared by any other edit
+    /// of the boundaries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boundary_decision: Option<BoundaryDecision>,
 }
 /// Peak between explicit bounds with the legacy straight-line baseline.
 pub fn measure(trace: &[[f64; 2]], start: f64, end: f64) -> Result<Peak, String> {
