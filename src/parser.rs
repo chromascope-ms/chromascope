@@ -1237,11 +1237,17 @@ impl MzData {
                 // Sum stored samples directly: this works for profile and centroid
                 // arrays without silently applying peak picking during import.
                 if let Some(arrays) = spectrum.arrays.as_ref() {
-                    if arrays.is_empty() {return Ok((spectrum_rt,0.,spectrum_idx));}
+                    if arrays.is_empty() {
+                        return Ok((spectrum_rt, 0., spectrum_idx));
+                    }
                     let mzs = arrays.mzs().map_err(|e| {
                         ChromascopeError::MzDataError(format!("Cannot read XIC m/z array: {:?}", e))
                     })?;
-                    let intensities = arrays.intensities().map_err(|e| ChromascopeError::MzDataError(format!("Cannot read XIC intensity array: {e:?}")))?;
+                    let intensities = arrays.intensities().map_err(|e| {
+                        ChromascopeError::MzDataError(format!(
+                            "Cannot read XIC intensity array: {e:?}"
+                        ))
+                    })?;
                     validate_peak_arrays(&mzs, &intensities)?;
                     let selected = peaks_in_range(&mzs, mass - tol_da, mass + tol_da);
                     return Ok((
@@ -1258,20 +1264,20 @@ impl MzData {
                 })?;
                 let total_intensity: f32 = sum_intensities(
                     centroided
-                    .peaks
-                    .all_peaks_for(
-                        mass,
-                        match tolerance.unit {
-                            crate::validation::ToleranceUnit::Ppm => {
-                                Tolerance::PPM(tolerance.value)
-                            }
-                            crate::validation::ToleranceUnit::Mda => {
-                                Tolerance::Da(tolerance.value / 1000.0)
-                            }
-                        },
-                    )
-                    .iter()
-                    .map(|p| p.intensity),
+                        .peaks
+                        .all_peaks_for(
+                            mass,
+                            match tolerance.unit {
+                                crate::validation::ToleranceUnit::Ppm => {
+                                    Tolerance::PPM(tolerance.value)
+                                }
+                                crate::validation::ToleranceUnit::Mda => {
+                                    Tolerance::Da(tolerance.value / 1000.0)
+                                }
+                            },
+                        )
+                        .iter()
+                        .map(|p| p.intensity),
                 );
 
                 Ok((spectrum_rt, total_intensity, spectrum_idx))
