@@ -152,6 +152,7 @@ fn every_tool_is_called_over_the_protocol_by_some_test() {
     let mut sources = String::new();
     for file in [
         "src/gui/remote/protocol_tests.rs",
+        "src/gui/remote/ai_oversight_tests.rs",
         "tests/engine_mcp.rs",
         "tests/desktop_mcp.rs",
         "tests/mcp_parity.rs",

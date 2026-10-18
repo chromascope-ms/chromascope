@@ -105,6 +105,7 @@ use log::{error, warn};
 
 pub mod actions;
 mod ai_review;
+mod ai_status;
 mod annotation;
 mod calibration;
 mod calibration_setup;
@@ -686,7 +687,7 @@ impl eframe::App for MzViewerApp {
         if workbench::advanced_active(self) {
             workbench::status(self, ctx);
         } else if self.quant.active {
-            update::show_notice_bar(&self.updates, ctx);
+            ai_status::bar(self, ctx);
             quant::show(self, ctx);
         } else {
             workbench::status(self, ctx);
@@ -704,6 +705,7 @@ impl eframe::App for MzViewerApp {
             statistics::show(self, ctx);
         }
         delivery::show(self, ctx);
+        ai_status::log_window(self, ctx);
         dialogs::render_error_dialog(self, ctx);
         information::show(self, ctx);
     }

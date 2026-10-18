@@ -78,10 +78,13 @@ pub(super) fn show(app: &mut super::MzViewerApp, ctx: &egui::Context) {
     }
     let mut open = app.delivery.open;
     super::workbench::analytical_panel(ctx, super::workflow::AUDIT_PACKAGE, &mut open, |ui| {
-        egui::CollapsingHeader::new("Review AI proposals")
+        let mut section = egui::CollapsingHeader::new("Review AI proposals")
             .id_salt("review_ai_proposals")
-            .default_open(true)
-            .show(ui, |ui| super::ai_review::panel(app, ui));
+            .default_open(true);
+        if app.ai.take_reveal() {
+            section = section.open(Some(true));
+        }
+        section.show(ui, |ui| super::ai_review::panel(app, ui));
         ui.add_space(8.0);
         release_review(app, ctx, ui);
         ui.add_space(8.0);

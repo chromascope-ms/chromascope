@@ -1205,7 +1205,7 @@ ppm=-1.0",
 }
 
 /// A one-analyte method that fits the fixture's retention-time range.
-fn fixture_method(desktop: &mut Desktop, id: u64, name: &str) -> String {
+pub(super) fn fixture_method(desktop: &mut Desktop, id: u64, name: &str) -> String {
     let metadata = desktop.tool("dataset_metadata", json!({"dataset_id":id}));
     let (start, end) = (
         metadata["retention_time_minutes"][0].as_f64().unwrap(),
@@ -1215,7 +1215,7 @@ fn fixture_method(desktop: &mut Desktop, id: u64, name: &str) -> String {
 }
 
 /// Runs the method on the dataset and returns the finished batch status.
-fn run_batch(desktop: &mut Desktop, id: u64, method: &str) -> Value {
+pub(super) fn run_batch(desktop: &mut Desktop, id: u64, method: &str) -> Value {
     desktop.tool(
         "start_quantification",
         json!({"method_toml":method,"dataset_ids":[id]}),

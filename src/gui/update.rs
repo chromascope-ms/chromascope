@@ -312,19 +312,6 @@ pub(super) fn show_notice(updates: &Updates, ui: &mut egui::Ui) {
     }
 }
 
-/// The same notice on a bar of its own, for the workspaces that have no status bar. Draws
-/// nothing while there is no notice.
-pub(super) fn show_notice_bar(updates: &Updates, ctx: &egui::Context) {
-    if super::settings::with_update_prefs(|prefs| updates.notice(prefs).is_none()) {
-        return;
-    }
-    egui::TopBottomPanel::bottom("update_notice")
-        .frame(super::theme::bar_frame(ctx, 4).fill(ctx.style().visuals.faint_bg_color))
-        .show(ctx, |ui| {
-            ui.horizontal_wrapped(|ui| show_notice(updates, ui));
-        });
-}
-
 /// True when the last request is older than a day (or was never made, or lies in the future
 /// because the clock was set back).
 pub(super) fn due(prefs: &Prefs, now: u64) -> bool {

@@ -614,7 +614,41 @@ pub(crate) enum Route {
     NotShown { reason: String },
 }
 pub(crate) type RouteMap = Arc<Mutex<HashMap<String, Route>>>;
+/// Counts the requests the server is working on, for the window's "AI is working…" line. A
+/// request counts from the moment it arrives until its reply has been sent.
+pub(crate) struct Working {
+    count: Arc<std::sync::atomic::AtomicUsize>,
+    context: egui::Context,
+}
+impl Working {
+    fn start(count: &Arc<std::sync::atomic::AtomicUsize>, context: &egui::Context) -> Self {
+        count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        context.request_repaint();
+        Self {
+            count: count.clone(),
+            context: context.clone(),
+        }
+    }
+}
+impl Drop for Working {
+    fn drop(&mut self) {
+        self.count.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+        self.context.request_repaint();
+    }
+}
+impl GuiBridge {
+    /// Whether the AI has a request in progress (queued, running or waiting for the window).
+    pub(crate) fn working(&self) -> bool {
+        self.pending.is_some() || self.active.load(std::sync::atomic::Ordering::SeqCst) > 0
+    }
+}
 pub struct GuiBridge {
+    /// Whether the window shows the AI call log (the status bar's "View log").
+    pub(crate) log_open: bool,
+    /// Requests the server is working on right now.
+    pub(crate) active: Arc<std::sync::atomic::AtomicUsize>,
+    /// The tool profile the server was started with (shown in the call log).
+    pub(crate) profile: Arc<Mutex<ToolProfile>>,
     pub(crate) pending: Option<crate::gui::remote::PendingOperation>,
     pub receiver: mpsc::Receiver<Envelope>,
     pub(crate) internal: mpsc::Receiver<Internal>,
@@ -645,6 +679,8 @@ pub struct McpServer {
     routed: RouteMap,
     policy: AccessPolicy,
     profile: ToolProfile,
+    active: Arc<std::sync::atomic::AtomicUsize>,
+    shown_profile: Arc<Mutex<ToolProfile>>,
 }
 impl McpServer {
     pub fn new(context: egui::Context, policy: AccessPolicy) -> Result<(Self, GuiBridge), String> {
@@ -654,6 +690,8 @@ impl McpServer {
             .map_err(|e| e.to_string())?
             .with_project_writes(policy.allow_project_writes);
         let routed = RouteMap::default();
+        let active = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let shown_profile = Arc::new(Mutex::new(ToolProfile::Full));
         Ok((
             Self {
                 sender,
@@ -665,8 +703,13 @@ impl McpServer {
                 routed: routed.clone(),
                 policy: policy.clone(),
                 profile: ToolProfile::Full,
+                active: active.clone(),
+                shown_profile: shown_profile.clone(),
             },
             GuiBridge {
+                log_open: false,
+                active,
+                profile: shown_profile,
                 pending: None,
                 receiver,
                 internal: internal_receiver,
@@ -692,6 +735,9 @@ impl McpServer {
     /// Lists and accepts only the tools of this profile (everything by default).
     pub fn with_tool_profile(mut self, profile: ToolProfile) -> Self {
         self.profile = profile;
+        if let Ok(mut shown) = self.shown_profile.lock() {
+            *shown = profile;
+        }
         self
     }
     pub(crate) async fn dispatch(&self, command: Command) -> CallToolResult {
@@ -727,6 +773,7 @@ impl McpServer {
         self.dispatch_single(command).await
     }
     async fn dispatch_single(&self, command: Command) -> CallToolResult {
+        let _working = Working::start(&self.active, &self.context);
         let (reply, receive) = oneshot::channel();
         if self.sender.try_send(Envelope { command, reply }).is_err() {
             return CallToolResult::structured_error(
@@ -810,6 +857,7 @@ impl McpServer {
         request: CallToolRequestParams,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<CallToolResponse, rmcp::ErrorData> {
+        let _working = Working::start(&self.active, &self.context);
         let parameters = request
             .arguments
             .clone()
@@ -2493,6 +2541,16 @@ pub struct SelectTraceArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn the_window_learns_which_tool_profile_the_server_runs() {
+        let root = tempfile::tempdir().unwrap();
+        let policy = AccessPolicy::new(vec![root.path().to_owned()], false, false).unwrap();
+        let (server, bridge) = McpServer::new(egui::Context::default(), policy).unwrap();
+        assert_eq!(*bridge.profile.lock().unwrap(), ToolProfile::Full);
+        let _server = server.with_tool_profile(ToolProfile::Core);
+        assert_eq!(*bridge.profile.lock().unwrap(), ToolProfile::Core);
+        assert!(!bridge.working());
+    }
     #[test]
     fn access_policy_denies_escape_and_overwrite() {
         let allowed = tempfile::tempdir().unwrap();

@@ -1638,6 +1638,8 @@ impl MzViewerApp {
     }
 }
 
+#[cfg(test)]
+mod ai_oversight_tests;
 mod files;
 mod ops;
 mod projects;

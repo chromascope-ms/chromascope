@@ -19,6 +19,12 @@ pub(super) struct State {
     message: String,
     #[serde(skip)]
     pending: Option<std::sync::mpsc::Receiver<ProposalOutcome>>,
+    /// The newest proposal an AI delivered that nobody has looked at yet (the status bar notice).
+    #[serde(skip)]
+    notice: Option<uuid::Uuid>,
+    /// Open the "Review AI proposals" section on the next frame (the notice's Review button).
+    #[serde(skip)]
+    reveal: bool,
 }
 fn current(app: &MzViewerApp, before: &Value) -> Option<Value> {
     let value =
@@ -280,6 +286,30 @@ pub(super) fn panel(app: &mut MzViewerApp, ui: &mut egui::Ui) {
 }
 
 impl State {
+    /// Whether the status bar should say that the AI proposed a change that still awaits a decision.
+    pub(super) fn has_notice(&self) -> bool {
+        self.notice.is_some_and(|id| {
+            self.proposals
+                .iter()
+                .any(|p| p.id == id && p.events.is_empty())
+        })
+    }
+    /// Selects the proposal of the notice and clears the notice.
+    pub(super) fn take_notice(&mut self) {
+        if let Some(id) = self.notice.take() {
+            if let Some(index) = self.proposals.iter().position(|p| p.id == id) {
+                self.selected = index;
+            }
+        }
+    }
+    /// Asks the Audit package to open its "Review AI proposals" section.
+    pub(super) fn reveal_selected(&mut self) {
+        self.reveal = true;
+    }
+    /// True once, after [`Self::reveal_selected`].
+    pub(super) fn take_reveal(&mut self) -> bool {
+        std::mem::take(&mut self.reveal)
+    }
     pub(super) fn busy(&self) -> bool {
         self.pending.is_some()
     }

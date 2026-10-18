@@ -486,6 +486,7 @@ pub const ACTIONS: &[Action] = &[
         &[
             "Data explorer",
             "Quantification and QC",
+            "Review",
         ],
         &["show_workspace"],
     ),
@@ -535,7 +536,7 @@ pub const ACTIONS: &[Action] = &[
     act(
         "Read the AI call log and the audit of an AI session",
         "Status bar of the chromascope-mcp window",
-        &[],
+        &["View log"],
         &["session_audit", "gui_state"],
     ),
     engine(
