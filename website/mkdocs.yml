@@ -93,6 +93,7 @@ nav:
   - AI assistants (MCP):
       - What an AI can do: mcp/index.md
       - Setup: mcp/setup.md
+      - Reviewing AI proposals: mcp/reviewing-proposals.md
       - Example prompts: mcp/example-prompts.md
       - Built-in workflow prompts: mcp/workflow-prompts.md
       - Resources: mcp/resources.md

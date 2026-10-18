@@ -15,6 +15,17 @@
 - A closed window ends the connection, so the client must start the program again.
 - Run the command in a terminal. Logs go to standard error; set `RUST_LOG=debug` to see more.
 
+## I see no AI activity and no proposal
+
+You are probably looking at `chromascope.exe` instead of the `chromascope-mcp` window that your AI client opened. They are two separate programs. Only the window that the client started is connected to the assistant: its status bar says *AI connected*, counts the requests and offers **View log**. A `chromascope.exe` that you started yourself has no assistant, so it shows no activity and receives no live proposals; it can only show proposals that were saved in a project, after you open that project.
+
+Other causes:
+
+- The window has been closed and the client started a new one: the new window begins empty.
+- The assistant applied nothing and proposed nothing yet: ask it for a proposal; see [Reviewing AI proposals](reviewing-proposals.md).
+- The proposal is in the **Audit package** tab, under **Review AI proposals**. The window does not switch tabs by itself; click **Review** in the status bar.
+- A proposal made against a result you have since changed is marked as stale and can no longer be approved; ask for a new one.
+
 ## A tool is refused
 
 The message says why. The common ones:
@@ -41,6 +52,6 @@ To add a flag, change the `args` in your client's configuration and restart the 
 
 ## Where to look
 
-- The AI call log in the status bar of the window (View log) shows every call and failure with its exact request.
-- `session_audit` lets the assistant read the same list.
-- Report problems at [github.com/chromascope-ms/chromascope/issues](https://github.com/chromascope-ms/chromascope/issues). Say which program (`chromascope-mcp` or `chromascope-engine-mcp`), the flags you used, your client, and the failing call from the AI call log.
+- **View log** in the status bar of the window opens the AI call log, with every call and failure and its exact request. The log is kept only while the window is open.
+- `session_audit` lets the assistant read the same list, and `prepare_analysis_report` keeps it in a report draft.
+- Report problems at [github.com/chromascope-ms/chromascope/issues](https://github.com/chromascope-ms/chromascope/issues). Say which program (`chromascope-mcp` or `chromascope-engine-mcp`), the flags you used, your client, and the failing call from the AI call log (or from `session_audit`).

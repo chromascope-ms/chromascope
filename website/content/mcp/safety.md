@@ -15,14 +15,19 @@ The roots are trusted local storage, not a sandbox. Do not name a folder that an
 
 - Which converter program Chromascope runs (the operator decides).
 - Whether a peak was reviewed by a person (only **✓ Accept peak** does that).
+- Whether one of its own proposals is approved. A proposal waits in **Review AI proposals** until you click **Approve** or **Reject** in the window; the assistant has no way to do it there (see [Reviewing AI proposals](reviewing-proposals.md)).
 - Whether a failing QC rule passes. An acknowledgement stays a note with a reason.
 - Whether a similarity score confirms an identity. It never does.
 
-An approval that goes through `resolve_review_proposal` is attributed to the name the assistant was told, but it is not authenticated: there is no login. Treat names in the record as labels.
+A proposal stored in a project can also be approved with `resolve_review_proposal`, only when the program was started with `--allow-project-writes`. That approval is attributed to the name the assistant was told, but it is not authenticated: there is no login. Treat names in the record as labels.
 
 ## What is recorded
 
-The AI call log (status bar of the `chromascope-mcp` window, View log) lists every call an assistant made in this session: the tool, the exact request (a request larger than 64 KiB is summarised by its size and its SHA-256), the outcome, and the permissions the program was started with. Failures are listed too. The list lives in memory for the session. To keep it, export it before you close the program: `prepare_analysis_report` collects it with the jobs into a report draft, and an audit package keeps the project evidence.
+The status bar of the `chromascope-mcp` window shows *AI connected* and the number of requests. The link **View log** opens the AI call log. It lists the permissions the program was started with (the three flags, the tool profile and the folders) and the latest 100 requests: the tool, the exact request (a request larger than 64 KiB is summarised by its size and its SHA-256) and the outcome. Failures are listed too. The window stays open when the assistant switches to another tab.
+
+The log is kept only while the window is open. For a permanent record, ask the assistant for `session_audit` or `prepare_analysis_report`: the second collects the calls with the jobs into a report draft, and an audit package keeps the project evidence.
+
+A proposal is recorded on its own, with the assistant's reason and evidence and your decision and reason, and is saved with the project. See [Reviewing AI proposals](reviewing-proposals.md#what-is-recorded).
 
 The results keep the units, settings and software versions they were made with, and the hash of the source file. Corrections made by an assistant stay distinct from a human review. Text written by an assistant is never stored as a measured value, and an assistant's explanation is marked as unverified in reports.
 

@@ -1,11 +1,11 @@
 # Example prompts
 
-Thirty-two prompts you can paste into your assistant, from a single look at a file to a complete calibration. Each one lists what the assistant will do, the tools it will call, the launch flags it needs and what you should check in the result.
+Thirty-six prompts you can paste into your assistant, from a single look at a file to a complete calibration. Each one lists what the assistant will do, the tools it will call, the launch flags it needs and what you should check in the result.
 
 !!! info "Replace the names with your own"
     The examples use `sample.mzML`, `standards`, the folder `C:\MSData` and the compound caffeine as stand-ins. Change them to your own files, folders and masses. The assistant can only reach files inside a folder you gave with `--allow-root`; every prompt needs that flag, so it is not repeated in the lists below.
 
-The assistant chooses its own steps, so the tools it calls can differ a little from the list. The list shows what the guide expects. In the window of `chromascope-mcp`, the AI call log (status bar, View log) shows what really happened.
+The assistant chooses its own steps, so the tools it calls can differ a little from the list. The list shows what the guide expects. In the window of `chromascope-mcp`, the link **View log** in the status bar opens the AI call log, which shows what really happened while the window is open.
 
 ## Open and inspect data
 
@@ -366,9 +366,57 @@ Read the project C:\MSData\Projects\caffeine-study.json and summarise its revisi
 - *Flags:* none besides `--allow-root`.
 - *Check:* the revision count equals what the **Project** menu shows after you open the project.
 
+## Proposals
+
+A proposal is a suggested change that waits in your window until you decide. The assistant never applies it itself: it appears under **Audit package**, **Review AI proposals**, with its reason and evidence, and only your click on **Approve** changes a result. Say *propose* and *don't apply* in the prompt. The whole story is in [Reviewing AI proposals](reviewing-proposals.md).
+
+### 32. Propose new peak boundaries
+
+```text
+Check the integration of caffeine in run 3. If the boundaries look wrong, propose new ones with your reason and evidence, but don't apply them.
+```
+
+- *The assistant will:* look at the batch result of that sample, read the trace behind the peak and, if the boundaries look wrong, make a proposal with the new start and end, its reason and the evidence it used. It changes nothing.
+- *Tools:* `list_datasets`, `quantification_status`, `quantification_trace`, `review_quantification` with `propose`, `dataset_id`, `reason` and `evidence`
+- *Flags:* none besides `--allow-root`. A proposal needs no `--allow-changes`; the batch must already be in the window (run it first, or open the project).
+- *Check:* the status bar says *The AI proposed a change*. **Review** opens **Review AI proposals**, which shows the original and the proposed start, end and area. The peak in **Quantification and QC** is unchanged until you click **Approve**.
+
+### 33. Propose a review of a calibration result
+
+```text
+Look at the calibration of the last run. If a sample should not be accepted, propose rejecting it with your reason and the numbers that support it, but don't apply the review.
+```
+
+- *The assistant will:* read the finished calibration and, for a result it doubts, prepare a review proposal with the original and the proposed review state.
+- *Tools:* `analysis_status`, `analysis_result`, `prepare_review_proposal`
+- *Flags:* `--allow-changes`, so that the calibration is shown in **Quantification and QC**; you approve a proposal there against the result in the window.
+- *Check:* **Review AI proposals** lists the proposal with its reason. After **Approve** the result carries a review with both reasons; before that the table is unchanged.
+
+### 34. Propose acknowledging a QC rule
+
+```text
+Which QC rules failed in the last QC evaluation? For the accuracy rule, propose an acknowledgement with the reason you found, but don't apply it.
+```
+
+- *The assistant will:* read the QC report, explain the failed rules and propose an acknowledgement for one of them.
+- *Tools:* `analysis_status`, `analysis_result`, `prepare_review_proposal`
+- *Flags:* `--allow-changes`, so that the QC report is shown in the window.
+- *Check:* an acknowledgement stays a note with a reason; the failed verdict does not turn into a pass, whether you approve the proposal or not.
+
+### 35. Keep a proposal in the project
+
+```text
+In the open project, propose rejecting sample 7 for caffeine because its qualifier ratio is outside the range. Keep the proposal in the project so that I can review it tomorrow, and don't apply it.
+```
+
+- *The assistant will:* read the project, prepare the proposal and store it in the project as a suggestion. It changes no result.
+- *Tools:* `inspect_project`, `prepare_review_proposal`, `queue_review_proposal`
+- *Flags:* `--allow-project-writes`.
+- *Check:* the proposal is in **Review AI proposals** right away, and the project has a new revision. Close everything, open the project in the plain `chromascope.exe` and the proposal is in the same list.
+
 ## Settings
 
-### 32. Change the look of the window
+### 36. Change the look of the window
 
 ```text
 Switch the window to the dark theme, interface size 115 percent and 5 decimals for m/z. Then tell me whether a newer Chromascope version is available.

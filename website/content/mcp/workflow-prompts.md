@@ -27,11 +27,11 @@ Every prompt takes one optional argument, `focus`: *what to look at*, for exampl
 
 ### review_integration
 
-*What it asks:* Preview alternative peak bounds and present both areas for review.
+*What it asks:* Check the integration of a peak. If the boundaries look wrong, propose new ones with your reason and evidence; do not apply them.
 
-*When to use it:* You doubt the automatic boundaries and want to see the effect of other ones before you change anything. The assistant keeps the original and the corrected result, each with its reason.
+*When to use it:* You doubt the automatic boundaries and want a second opinion before anything changes. The assistant previews other boundaries and, if they are better, makes a *proposal* instead of applying them. The proposal appears in your window under **Audit package**, **Review AI proposals**, with the original and the proposed values, and you approve or reject it. See [Reviewing AI proposals](reviewing-proposals.md).
 
-*Review rule it follows:* Use preview first; retain original and corrected revisions with reasons.
+*Review rule it follows:* Preview alternative bounds first, then propose instead of applying: `prepare_review_proposal` for engine results, and in the `chromascope-mcp` window `review_quantification` with `propose` for the peak boundaries of a batch. The assistant never approves its own proposal.
 
 *A good `focus`:* `caffeine in sample 7`
 

@@ -31,7 +31,11 @@ Add one of these to a request that matters:
 - *"List every sample you changed and every file you wrote."*
 - *"Say what is measured and what is your interpretation."*
 
-The evidence is in the window too: the AI call log (status bar, View log) lists every call with its exact request.
+The evidence is in the window too: **View log** in the status bar opens the AI call log, which lists every call with its exact request while the window is open. For a record that lasts, ask for `session_audit`.
+
+## Ask for a proposal when you want to decide
+
+When you want to look at a change before it happens, say so: *"If the boundaries look wrong, propose new ones with your reason and evidence, but don't apply them."* The assistant then makes a proposal that appears in your window under **Review AI proposals**, and only your **Approve** changes the result. See [Reviewing AI proposals](reviewing-proposals.md).
 
 ## Start small
 
@@ -57,4 +61,4 @@ An assistant can correct boundaries, but it cannot mark a peak as reviewed; that
 
 ## When you get a wrong answer
 
-Ask the assistant to name the tool call that produced the number, then compare it with the call in the AI call log. If the settings differ from what you meant, say so and repeat the step. Nothing the assistant did to the window is permanent until you save it; **File**, then **Open viewer session…** returns to an earlier state.
+Ask the assistant to name the tool call that produced the number, then compare it with the call in the AI call log (**View log**). If the settings differ from what you meant, say so and repeat the step. Nothing the assistant did to the window is permanent until you save it; **File**, then **Open viewer session…** returns to an earlier state.

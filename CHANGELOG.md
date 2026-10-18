@@ -37,7 +37,7 @@ quantification workbench with a command-line interface and two MCP servers.
   `analysis_capabilities` returns the complete schema. A
   calibration or QC computed by an AI appears in the Quantification tab without reopening anything.
   Launch flags `--allow-root`, `--allow-changes`, `--allow-exports` and
-  `--allow-project-writes` decide what it may touch; every call is recorded in the AI call log of the window.
+  `--allow-project-writes` decide what it may touch; every call is recorded in the AI call log of the window (see "AI oversight in the window" below).
   Every tool has its own description that says what it does, when to use it and which flag it
   needs, and carries read-only/destructive annotations. `chromascope-engine-mcp` is a subset of
   this server, kept for scripts and machines without a desktop.
@@ -48,6 +48,25 @@ quantification workbench with a command-line interface and two MCP servers.
   `refresh_project`, `build_bundle` / `verify_bundle` / `reprocess_result`, `get_settings` /
   `set_settings`, `export_results` / `import_results`, `show_workspace`, `remove_measurement`,
   `clear_integration`, `clear_display`, `export_measurements` and `set_view` with `reset`.
+- **AI oversight in the window.** In the `chromascope-mcp` window the status bar shows
+  "AI connected · N requests · View log" (and "AI is working…" while a request runs); **View log**
+  opens a floating AI call log with the launch permissions, the folders and the latest 100
+  requests, which stays open whatever workspace the assistant shows. The log lasts only while the
+  window is open; `session_audit` and `prepare_analysis_report` give a permanent record. The plain
+  `chromascope.exe` has no assistant and shows none of this.
+- **Review AI proposals.** The Audit package has a section **Review AI proposals**: original and
+  proposed values side by side with the assistant's reason and evidence, and **Approve** or
+  **Reject** with the person's own reason. `prepare_review_proposal` and `queue_review_proposal`
+  deliver the proposal to the window by themselves (status bar: "The AI proposed a change ·
+  Review"), without switching workspace and without `--allow-changes`; a proposal stored in a
+  project with `--allow-project-writes` is found when that project is opened later, also in
+  `chromascope.exe`. `review_quantification` with `propose` proposes new peak boundaries for a
+  batch result; approving applies them exactly like a manual boundary edit, keeps the automatic
+  peak, records both reasons on the result and refuses a proposal whose result changed since. The
+  assistant cannot approve its own proposal. The server instructions, the tool descriptions and
+  the `review_integration` prompt tell an assistant to propose when you ask it to. An empty list
+  explains what a proposal is and how to ask for one. There is no separate "AI activity" workspace;
+  `show_workspace` accepts `data_explorer`, `quantification`, `method_editor` and `audit_package`.
 - **Stable dataset IDs.** `list_datasets` shows a `stable_id` (the SHA-256 of the source file) next
   to the number; every tool accepts either, or a project dataset's UUID, so an AI cannot point at
   the wrong file after a restart.
@@ -58,8 +77,8 @@ quantification workbench with a command-line interface and two MCP servers.
   `chromascope://` resources.
 - **No window control without an MCP tool.** `src/gui/actions.rs` maps every button, menu item and
   input to its tool, and `tests/mcp_parity.rs` fails when one is missing, when a listed tool
-  is not offered, or when no test calls a tool over the protocol. One action is withheld on purpose:
-  choosing the msconvert program.
+  is not offered, or when no test calls a tool over the protocol. Two actions are withheld on
+  purpose: choosing the msconvert program, and approving or rejecting an AI proposal in the window.
 - **Experimental workflows are hidden.** Identification, Untargeted analysis and Statistics are
   compiled but only exposed when built with `--features experimental`. The engine itself rejects
   their operations with `experimental_unavailable`, so project re-processing and AI review

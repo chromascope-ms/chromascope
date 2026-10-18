@@ -2,11 +2,12 @@
 
 Chromascope can be driven by an AI assistant. You keep working in the Chromascope window; the assistant does the clicking you would otherwise do, by sending commands over a standard called MCP (Model Context Protocol). You say what you want in plain words, the assistant picks the steps, and Chromascope does the numerical work and shows the result in your window.
 
-Three things stay true however you use it:
+Four things stay true however you use it:
 
 - *Chromascope contains no AI.* The assistant is a separate program of your choice (for example Claude Desktop). It reasons; Chromascope calculates. Every area, every calibration and every QC verdict is computed by the same code that the buttons use, so a number from the assistant is the number you get by clicking.
 - *You decide what the assistant may do.* When you start the program you give it permissions with launch flags. With none, the assistant can only look at files inside the folders you name.
-- *Everything is recorded.* The AI call log in the status bar of the `chromascope-mcp` window (View log) lists every call, with its exact request, as it happens.
+- *Everything is recorded.* The status bar of the `chromascope-mcp` window says *AI connected* with the number of requests. The link **View log** opens the AI call log, which lists every call with its exact request, as it happens. The log lasts only while the window is open; for a permanent record ask the assistant for `session_audit` or `prepare_analysis_report`.
+- *The assistant proposes, you approve.* Ask it to propose a change instead of making it, and the proposal appears in your window under **Audit package**, **Review AI proposals**, with its reason and evidence. Only your click on **Approve** changes a result. See [Reviewing AI proposals](reviewing-proposals.md).
 
 ## Two programs
 
@@ -24,7 +25,9 @@ Both come with every installer. See [Setup](setup.md).
 | (none, only `--allow-root`) | Look: open files inside the named folders, extract traces, read spectra, preview integrations, read results. Nothing in the window changes. |
 | `--allow-changes` | Change what is in the window: select, zoom, lay out, apply integrations, run a batch, open methods, sessions and projects, change preferences. |
 | `--allow-exports` | Write new files: figures, CSV tables, methods, sessions, batches, presets, audit packages. Existing files are never overwritten. |
-| `--allow-project-writes` | Create projects, save revisions, approve and commit review proposals. |
+| `--allow-project-writes` | Create projects, save revisions, keep review proposals in a project, approve and commit review proposals stored in a project. |
+
+A proposal needs none of the last three flags: showing a proposal changes no result, and approving it in the window is your own action.
 
 `--allow-root` is needed for everything: it names the folders the assistant may use, and nothing outside them can be read or written. Details and recommendations are in [Setup](setup.md#the-launch-flags).
 
@@ -72,6 +75,7 @@ The last column says which launch flag the tool needs. "read" means `--allow-roo
 | run a method over many samples | `start_quantification` | `--allow-changes` |
 | follow the progress, read every result and the trace behind a peak | `quantification_status`, `quantification_trace` | read |
 | correct the boundaries of a result, restore the automatic peak, stop the batch | `review_quantification`, `reset_quantification`, `cancel_quantification` | `--allow-changes` |
+| propose new boundaries for a result, with a reason and evidence, instead of applying them (you approve in the window) | `review_quantification` with `propose` | read |
 | save the batch results as a CSV file | `export_quantification` | `--allow-exports` |
 
 ### Calibration, concentrations and QC
@@ -82,7 +86,7 @@ These use the shared analysis engine. The assistant starts a job with `start_ana
 |---|---|---|
 | read the full list of engine operations, their units and the six workflow recipes | `analysis_capabilities` | read |
 | start a calibration, quantification or QC job, follow it, read it and cancel it | `start_analysis`, `analysis_status`, `analysis_result`, `cancel_analysis` | read |
-| prepare a suggested correction for you to review (nothing is changed) | `prepare_review_proposal` | read |
+| prepare a suggested correction for you to review (nothing is changed; it appears in your window under **Review AI proposals**) | `prepare_review_proposal` | read |
 | read what the assistant did in this session, and prepare a report of it | `session_audit`, `prepare_analysis_report` | read |
 | save calibration or QC results as a file | `export_results` | `--allow-exports` |
 | load saved calibration runs and QC reports | `import_results` | `--allow-changes` |
@@ -116,7 +120,7 @@ These use the shared analysis engine. The assistant starts a job with `start_ana
 | create a project, or save a new revision | `create_project`, `save_project` | `--allow-project-writes` |
 | build an audit package in a new folder | `build_bundle` | `--allow-exports` |
 | check a package, or recompute a stored result and compare it | `verify_bundle`, `reprocess_result` | read |
-| queue a review proposal, approve or reject it, commit a job to a project | `queue_review_proposal`, `resolve_review_proposal`, `commit_analysis` | `--allow-project-writes` |
+| keep a review proposal in a project so it can be reviewed later (also in `chromascope.exe`), approve or reject one that is stored in a project, commit a job to a project | `queue_review_proposal`, `resolve_review_proposal`, `commit_analysis` | `--allow-project-writes` |
 
 ### Settings
 
@@ -129,10 +133,11 @@ These use the shared analysis engine. The assistant starts a job with `start_ana
 
 - *Choose the msconvert program.* Picking the executable that converts vendor files decides which program Chromascope runs. That is the operator's decision (the environment variable `CHROMASCOPE_MSCONVERT` or the window's menu), never an assistant's. `open_files` and `list_mzml_files` only report whether a converter is configured.
 - *Mark a peak as reviewed by a human.* `review_quantification` can correct boundaries, but it refuses to set the reviewed state. Only you can press **✓ Accept peak**, so a reviewed peak always means a person looked at it.
+- *Approve its own proposal in your window.* The buttons **Approve** and **Reject** exist only in the window. A proposal appears there through a private route that only a proposal the program itself made can use.
 - *Turn a failing QC rule into a pass.* An acknowledgement records a reason; the verdict stays.
 - *Touch anything outside the `--allow-root` folders.* Paths are resolved before they are used, so `..` and shortcuts cannot escape. Without a root nothing can be opened.
 - *Overwrite a file.* Exports create new files only.
-- *Put a result into the window by itself.* Calibration and QC results reach the window through a private route that only a finished engine job uses.
+- *Put a result into the window by itself.* Calibration and QC results reach the window through a private route that only a finished engine job uses. Proposals reach the review list the same way.
 - *Run a shell, or use the network.*
 - *Use unfinished workflows.* Identification, untargeted analysis and statistics are hidden in the standard build.
 
@@ -158,4 +163,4 @@ Use the default `full` profile unless your client has a limit.
 
 ## Next
 
-[Setup](setup.md), then [example prompts](example-prompts.md).
+[Setup](setup.md), then [example prompts](example-prompts.md). To let an assistant suggest changes that you approve yourself, read [Reviewing AI proposals](reviewing-proposals.md).
