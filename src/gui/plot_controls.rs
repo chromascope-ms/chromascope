@@ -7,6 +7,44 @@ type ExportCompletion = std::sync::mpsc::Receiver<Result<(), String>>;
 struct ExportJob(std::sync::Arc<std::sync::Mutex<ExportCompletion>>);
 /// Queue a view action (1 reset, 2 zoom in, 3 zoom out, 4 pan left, 5 pan right) for a plot
 /// whose toolbar is hidden behind a context menu.
+/// Fills exactly the area between a signal and its baseline (same x values), strip by strip.
+/// A single filled polygon would be drawn as a convex shape and spill over the peak's flanks.
+/// Call after the plot has been shown; the fill is clipped to the plot frame.
+pub(super) fn shade_between<R>(
+    ui: &egui::Ui,
+    plot: &egui_plot::PlotResponse<R>,
+    signal: &[[f64; 2]],
+    baseline: &[[f64; 2]],
+    fill: egui::Color32,
+) {
+    let n = signal.len().min(baseline.len());
+    if n < 2 {
+        return;
+    }
+    let step = n.div_ceil(2000).max(1);
+    let mut picked: Vec<usize> = (0..n).step_by(step).collect();
+    if picked.last() != Some(&(n - 1)) {
+        picked.push(n - 1);
+    }
+    let at = |p: [f64; 2]| {
+        plot.transform
+            .position_from_point(&egui_plot::PlotPoint::new(p[0], p[1]))
+    };
+    let mut mesh = egui::Mesh::default();
+    for &i in &picked {
+        mesh.colored_vertex(at(signal[i]), fill);
+        mesh.colored_vertex(at(baseline[i]), fill);
+    }
+    for k in 0..picked.len() as u32 - 1 {
+        let (s0, b0, s1, b1) = (2 * k, 2 * k + 1, 2 * k + 2, 2 * k + 3);
+        mesh.add_triangle(s0, b0, s1);
+        mesh.add_triangle(s1, b0, b1);
+    }
+    ui.painter()
+        .with_clip_rect(*plot.transform.frame())
+        .add(egui::Shape::mesh(mesh));
+}
+
 pub(super) fn trigger(ctx: &egui::Context, plot_id: egui::Id, action: u8) {
     ctx.data_mut(|d| d.insert_temp(plot_id.with("action"), action));
 }

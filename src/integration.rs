@@ -438,6 +438,7 @@ pub fn candidates(
 }
 
 /// The signal and baseline sampled across an integration interval, with interpolated edges.
+#[derive(Clone)]
 pub struct Profile {
     pub signal: Vec<[f64; 2]>,
     pub baseline: Vec<[f64; 2]>,

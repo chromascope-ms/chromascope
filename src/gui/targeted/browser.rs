@@ -4,7 +4,7 @@ use super::*;
 use crate::gui::concentration_view::{colour, health, Health};
 use crate::gui::table::{self, Cell, Row};
 use crate::quant::Status;
-use egui_plot::{Polygon, Text};
+use egui_plot::Text;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum Filter {
@@ -204,7 +204,8 @@ fn peak_pane(
         .strong(),
     );
     let tk = crate::gui::theme::Tokens::of(ui);
-    super::super::plot_controls::plot_x_only(ui, "browser_peak", true)
+    let mut shade: Option<crate::integration::Profile> = None;
+    let plot = super::super::plot_controls::plot_x_only(ui, "browser_peak", true)
         .height(height)
         .x_axis_label("Time (min)")
         .y_axis_label("Intensity")
@@ -224,13 +225,11 @@ fn peak_pane(
                         crate::integration::profile(&m.trace, peak.start, peak.end, &cfg)
                     {
                         p.line(Line::new("Baseline", profile.baseline.clone()).color(tk.text_dim));
-                        let mut outline = crate::processing::decimate_for_display(&profile.signal);
-                        outline.extend(profile.baseline.iter().rev().copied());
-                        p.polygon(
-                            Polygon::new("Integrated area", outline)
-                                .fill_color(tk.info.gamma_multiply(0.35))
-                                .stroke(egui::Stroke::new(1.0_f32, tk.info.gamma_multiply(0.63))),
+                        p.line(
+                            Line::new("Integrated area", profile.signal.clone())
+                                .color(tk.info.gamma_multiply(0.63)),
                         );
+                        shade = Some(profile);
                     }
                 }
                 p.text(Text::new(
@@ -240,6 +239,15 @@ fn peak_pane(
                 ));
             }
         });
+    if let Some(profile) = &shade {
+        super::super::plot_controls::shade_between(
+            ui,
+            &plot,
+            &profile.signal,
+            &profile.baseline,
+            tk.info.gamma_multiply(0.35),
+        );
+    }
     if ui
         .button("Revisit this peak in tab 1 ›")
         .on_hover_text("Open the peak in Areas and peak review to check or re-integrate it, then recalculate here")

@@ -3,7 +3,7 @@ use super::theme::Tokens;
 use super::MzViewerApp;
 use crate::processing::{self, ProcessingResult};
 use eframe::egui::{self, Color32};
-use egui_plot::{Line, PlotPoints, Polygon, VLine};
+use egui_plot::{Line, PlotPoints, VLine};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
@@ -1788,6 +1788,7 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
                 .allow_boxed_zoom(false)
                 .allow_drag(false);
             let tk = Tokens::of(ui);
+            let mut shade: Vec<(integration::Profile, egui::Color32)> = Vec::new();
             let response = plot.show(ui, |plot_ui| {
                 let display = processing::decimate_for_display(&r.trace);
                 plot_ui.line(
@@ -1801,14 +1802,11 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
                         plot_ui.line(
                             Line::new("Baseline", profile.baseline.clone()).color(tk.text_dim),
                         );
-                        plot_ui.polygon(
-                            Polygon::new("Integrated peak", profile_outline(&profile))
-                                .stroke(egui::Stroke::new(
-                                    1.0_f32,
-                                    tk.info.gamma_multiply(0.4),
-                                ))
-                                .fill_color(tk.info.gamma_multiply(0.18)),
+                        plot_ui.line(
+                            Line::new("Integrated peak", profile.signal.clone())
+                                .color(tk.info.gamma_multiply(0.4)),
                         );
+                        shade.push((profile, tk.info.gamma_multiply(0.18)));
                     }
                 }
                 if let Some((peak, profile)) = &overlay {
@@ -1818,11 +1816,12 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
                             .color(orange)
                             .style(egui_plot::LineStyle::dashed_loose()),
                     );
-                    plot_ui.polygon(
-                        Polygon::new("Preview peak", profile_outline(profile))
-                            .stroke(egui::Stroke::new(1.5_f32, orange))
-                            .fill_color(tk.warn.gamma_multiply(0.16)),
+                    plot_ui.line(
+                        Line::new("Preview peak", profile.signal.clone())
+                            .color(orange)
+                            .width(1.5_f32),
                     );
+                    shade.push((profile.clone(), tk.warn.gamma_multiply(0.16)));
                     plot_ui.vline(
                         VLine::new("Preview start", peak.start)
                             .color(orange)
@@ -1849,6 +1848,15 @@ fn review(q: &mut QuantState, ui: &mut egui::Ui) {
                         .x,
                 ));
             });
+            for (profile, fill) in &shade {
+                super::plot_controls::shade_between(
+                    ui,
+                    &response,
+                    &profile.signal,
+                    &profile.baseline,
+                    *fill,
+                );
+            }
             #[cfg(test)]
             ui.ctx().data_mut(|d| {
                 d.insert_temp(
@@ -2304,12 +2312,6 @@ fn applied_integration(q: &QuantState, i: usize) -> Integration {
     analyte_index(q, i)
         .map(|k| q.method.analytes[k].integration_for(&q.method))
         .unwrap_or_default()
-}
-/// Closed outline of the integrated area: the signal, then the baseline back.
-fn profile_outline(profile: &integration::Profile) -> Vec<[f64; 2]> {
-    let mut points = processing::decimate_for_display(&profile.signal);
-    points.extend(profile.baseline.iter().rev().copied());
-    points
 }
 /// Peak and baseline the draft settings would give, when they differ from the applied ones.
 fn draft_overlay(q: &QuantState, i: usize) -> Option<(crate::quant::Peak, integration::Profile)> {
