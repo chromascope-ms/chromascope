@@ -661,7 +661,7 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
     }
     // What was changed in the preview is what Recalculate will use.
     if let Some((target, cfg, excluded)) = cal.take_edit() {
-        setup.take_preview(batch, &target, &cfg, &excluded);
+        setup.take_preview(&batch.request, &target, &cfg, &excluded);
     }
     outcome
 }

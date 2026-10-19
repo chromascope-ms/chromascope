@@ -153,13 +153,12 @@ impl Setup {
     /// batch's target id): its fit settings and the standards left out of the calibration.
     pub fn take_preview(
         &mut self,
-        batch: &t::BatchResult,
+        request: &t::BatchRequest,
         target: &str,
         cfg: &t::CalibrationConfig,
         excluded: &std::collections::BTreeSet<String>,
     ) {
-        let Some(name) = batch
-            .request
+        let Some(name) = request
             .targets
             .iter()
             .find(|t| t.id == target)
@@ -271,9 +270,20 @@ impl Setup {
             let low = points.iter().copied().fold(f64::INFINITY, f64::min);
             let high = points.iter().copied().fold(f64::NEG_INFINITY, f64::max);
             if points.is_empty() || low >= high {
+                let standards = self
+                    .rows
+                    .iter()
+                    .filter(|r| r.role == t::Role::Standard)
+                    .count();
                 problems.push(format!(
-                    "{} needs standards at two or more different levels.",
-                    a.name
+                    "{} needs standards at two or more different levels ({} of {standards} standards are included, {} with a concentration).",
+                    a.name,
+                    self.rows
+                        .iter()
+                        .filter(|r| r.role == t::Role::Standard
+                            && excluded(&stem(&r.source), &a.name).is_none())
+                        .count(),
+                    points.len()
                 ));
             }
             ranges.push([low, high]);
@@ -529,6 +539,40 @@ mod tests {
         assert_eq!(request.samples[0].name, request.samples[1].name);
         assert_ne!(request.samples[0].id, request.samples[1].id);
         crate::targeted::validate(&request).unwrap();
+    }
+    #[test]
+    fn standards_left_out_in_the_curve_review_are_left_out_of_the_next_calculation() {
+        let (mut s, method) = setup();
+        let sheet = "sample type,file name,sample id,dilution,level
+                     standard,26-7,s1,1,1
+standard,26-8,s2,1,2
+standard,26-9,s3,1,3
+                     standard,26-10,s4,1,4
+standard,26-11,s5,1,5
+standard,26-12,s6,1,6
+";
+        apply(&mut s.rows, sheet).unwrap();
+        s.analytes[1].is_standard = true;
+        s.levels = ["1", "2", "3", "4", "5", "6"]
+            .iter()
+            .zip([0.0, 1.0, 2.0, 4.0, 8.0, 16.0])
+            .map(|(n, c)| Level {
+                name: (*n).into(),
+                conc: [("Analyte".to_owned(), c)].into(),
+            })
+            .collect();
+        let request = s.build_request(&method).unwrap();
+        let cfg = request.targets[0].calibration.clone().unwrap();
+        assert_eq!(cfg.range, [0.0, 16.0]);
+        let left_out = ["26-7".to_owned(), "26-8".to_owned()].into();
+        s.take_preview(&request, "target-1", &cfg, &left_out);
+        let request = s.build_request(&method).unwrap();
+        assert_eq!(
+            request.targets[0].calibration.as_ref().unwrap().range,
+            [2.0, 16.0]
+        );
+        assert!(request.samples[0].exclusions.contains_key("target-1"));
+        assert!(!request.samples[2].exclusions.contains_key("target-1"));
     }
     #[test]
     fn analytes_without_calibration_need_no_standards() {
