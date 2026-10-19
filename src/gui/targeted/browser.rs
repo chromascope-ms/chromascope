@@ -51,7 +51,8 @@ pub(super) struct Outcome {
     pub review: Option<bool>,
 }
 
-const HEADERS: [&str; 12] = [
+const HEADERS: [&str; 13] = [
+    "Include",
     "File name",
     "Sample type",
     "Sample ID",
@@ -70,6 +71,7 @@ fn number(value: Option<f64>, decimals: usize) -> Cell {
         text: value.map_or("NA".into(), |v| format!("{v:.decimals$}")),
         number: value,
         color: None,
+        checked: None,
     }
 }
 fn role_name(role: &t::Role) -> &'static str {
@@ -108,6 +110,7 @@ pub(super) fn rows_for(
     batch: &t::BatchResult,
     target: &str,
     filter: Filter,
+    is_included: &dyn Fn(&str) -> bool,
 ) -> Vec<(usize, Row)> {
     let internal = batch
         .request
@@ -147,6 +150,11 @@ pub(super) fn rows_for(
                 Row {
                     key: format!("{}/{}", s.id, target),
                     cells: vec![
+                        if s.role == t::Role::Standard && s.nominal.contains_key(target) {
+                            Cell::checkbox(is_included(&s.id))
+                        } else {
+                            Cell::text("")
+                        },
                         Cell::text(crate::sample_sheet::stem(&s.source)).colored(tint),
                         Cell::text(role_name(&s.role)),
                         Cell::text(&s.id),
@@ -335,10 +343,11 @@ fn table_pane(
     selected_key: Option<&str>,
     selected: &mut usize,
     filter: &mut Filter,
+    toggled: &mut Option<String>,
     height: f32,
 ) {
     let weights = [
-        120., 80., 90., 90., 90., 90., 80., 100., 100., 70., 80., 220.,
+        60., 120., 80., 90., 90., 90., 90., 80., 100., 100., 70., 80., 220.,
     ];
     if let Some(i) = table::show_with(
         ui,
@@ -350,6 +359,9 @@ fn table_pane(
         &weights,
     ) {
         *selected = indices[i];
+    }
+    if let Some(key) = table::take_toggle(ui.ctx(), "targeted_browser_rows") {
+        *toggled = Some(key);
     }
     ui.horizontal(|ui| {
         for f in Filter::ALL {
@@ -516,16 +528,25 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
             ui.small(message.as_str());
         }
     });
+    if batch.request.targets.iter().any(|t| &t.id == browse_target) {
+        cal.follow(batch, browse_target);
+    }
+    let mut toggled: Option<String> = None;
     let size = ui.available_size();
     let selected_sample = batch
         .results
         .get(*selected)
         .map(|r| r.sample.clone())
         .unwrap_or_default();
-    let (indices, table_rows): (Vec<usize>, Vec<Row>) =
-        rows_for(ui.visuals().dark_mode, batch, browse_target, *filter)
-            .into_iter()
-            .unzip();
+    let (indices, table_rows): (Vec<usize>, Vec<Row>) = rows_for(
+        ui.visuals().dark_mode,
+        batch,
+        browse_target,
+        *filter,
+        &|s| cal.is_included(s),
+    )
+    .into_iter()
+    .unzip();
     let selected_key = batch
         .results
         .get(*selected)
@@ -551,6 +572,7 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                                 selected_key.as_deref(),
                                 selected,
                                 filter,
+                                &mut toggled,
                                 top - 40.0,
                             );
                             ui.add_space(4.0);
@@ -634,6 +656,7 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                     selected_key.as_deref(),
                     selected,
                     filter,
+                    &mut toggled,
                     240.0,
                 );
                 ui.separator();
@@ -649,6 +672,9 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                     420.0,
                 );
             });
+    }
+    if let Some((sample, _)) = toggled.as_deref().and_then(|k| k.rsplit_once('/')) {
+        cal.toggle(sample);
     }
     outcome
 }
@@ -675,9 +701,9 @@ mod tests {
             .unwrap()
             .id
             .clone();
-        let all = rows_for(false, &batch, &target, Filter::All);
+        let all = rows_for(false, &batch, &target, Filter::All, &|_| true);
         assert_eq!(all.len(), batch.request.samples.len());
-        let standards = rows_for(false, &batch, &target, Filter::Standards);
+        let standards = rows_for(false, &batch, &target, Filter::Standards, &|_| true);
         assert_eq!(
             standards.len(),
             batch
@@ -687,7 +713,7 @@ mod tests {
                 .filter(|s| s.role == t::Role::Standard)
                 .count()
         );
-        assert!(standards.iter().all(|(_, r)| r.cells[1].text == "Standard"));
+        assert!(standards.iter().all(|(_, r)| r.cells[2].text == "Standard"));
         // Index points back at the matching result.
         let (index, row) = &all[0];
         assert_eq!(
@@ -695,11 +721,15 @@ mod tests {
             format!("{}/{}", batch.results[*index].sample, target)
         );
         assert_eq!(row.cells.len(), HEADERS.len());
+        // Standards carry an include tick that follows the given predicate.
+        assert_eq!(standards[0].1.cells[0].checked, Some(true));
+        let off = rows_for(false, &batch, &target, Filter::Standards, &|_| false);
+        assert_eq!(off[0].1.cells[0].checked, Some(false));
         // A standard shows its specified amount, an unknown shows NA.
         let specified = |f: Filter| {
-            rows_for(false, &batch, &target, f)
+            rows_for(false, &batch, &target, f, &|_| true)
                 .first()
-                .map(|r| r.1.cells[7].text.clone())
+                .map(|r| r.1.cells[8].text.clone())
         };
         assert_ne!(specified(Filter::Standards).unwrap(), "NA");
         if let Some(unknown) = specified(Filter::Unknowns) {

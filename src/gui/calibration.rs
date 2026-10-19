@@ -190,6 +190,22 @@ pub(super) struct State {
     error: String,
 }
 impl State {
+    /// Follows the analyte and run being browsed, so the include ticks match the curve preview.
+    pub(super) fn follow(&mut self, batch: &t::BatchResult, target: &str) {
+        if self.target != target || self.batch != Some(batch.batch_id) || self.cfg.is_none() {
+            self.target = target.to_owned();
+            self.reset(batch);
+        }
+    }
+    pub(super) fn is_included(&self, sample: &str) -> bool {
+        !self.excluded.contains(sample)
+    }
+    /// Takes a standard out of, or puts it back into, the previewed calibration.
+    pub(super) fn toggle(&mut self, sample: &str) {
+        if !self.excluded.remove(sample) {
+            self.excluded.insert(sample.to_owned());
+        }
+    }
     fn reset(&mut self, batch: &t::BatchResult) {
         let target = batch
             .request

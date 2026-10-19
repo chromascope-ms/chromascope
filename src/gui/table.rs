@@ -6,6 +6,8 @@ pub(super) struct Cell {
     pub text: String,
     pub number: Option<f64>,
     pub color: Option<egui::Color32>,
+    /// A tick box drawn in the cell; clicking it is reported by [`take_toggle`].
+    pub checked: Option<bool>,
 }
 impl Cell {
     pub fn text(value: impl ToString) -> Self {
@@ -13,6 +15,13 @@ impl Cell {
             text: value.to_string(),
             number: None,
             color: None,
+            checked: None,
+        }
+    }
+    pub fn checkbox(checked: bool) -> Self {
+        Self {
+            checked: Some(checked),
+            ..Self::text("")
         }
     }
     /// Tint the cell text, e.g. to signal review status.
@@ -27,6 +36,7 @@ impl Cell {
                 .unwrap_or_else(|| "Unavailable".into()),
             number: value,
             color: None,
+            checked: None,
         }
     }
 }
@@ -88,6 +98,10 @@ pub(super) fn show(
     show_with(ui, id, headers, rows, selected, 280., &[])
 }
 const ROW_HEIGHT: f32 = 26.;
+/// The key of the row whose tick box was clicked in table `id` since the last call.
+pub(super) fn take_toggle(ctx: &egui::Context, id: &str) -> Option<String> {
+    ctx.data_mut(|d| d.remove_temp::<String>(egui::Id::new(("table_toggle", id))))
+}
 /// Asks table `id` to bring its selected row into view on its next frame.
 pub(super) fn scroll_to_selected(ctx: &egui::Context, id: &str) {
     ctx.data_mut(|d| d.insert_temp(egui::Id::new(("table_scroll", id)), true));
@@ -299,7 +313,39 @@ pub(super) fn show_with(
                             ui.visuals().text_color()
                         });
                         let painter = ui.painter().with_clip_rect(area);
-                        if cell.number.is_some() {
+                        if let Some(checked) = cell.checked {
+                            let mark = egui::Rect::from_center_size(
+                                egui::pos2(area.left() + 16., area.center().y),
+                                egui::vec2(14., 14.),
+                            );
+                            painter.rect_stroke(
+                                mark,
+                                2.,
+                                ui.visuals().widgets.inactive.fg_stroke,
+                                egui::StrokeKind::Inside,
+                            );
+                            if checked {
+                                painter.text(
+                                    mark.center(),
+                                    egui::Align2::CENTER_CENTER,
+                                    "\u{2713}",
+                                    egui::TextStyle::Body.resolve(ui.style()),
+                                    color,
+                                );
+                            }
+                            if response.clicked()
+                                && response
+                                    .interact_pointer_pos()
+                                    .is_some_and(|p| mark.expand(6.).contains(p))
+                            {
+                                ui.ctx().data_mut(|d| {
+                                    d.insert_temp(
+                                        egui::Id::new(("table_toggle", id)),
+                                        row.key.clone(),
+                                    )
+                                });
+                            }
+                        } else if cell.number.is_some() {
                             painter.text(
                                 egui::pos2(area.right() - 10., area.center().y),
                                 egui::Align2::RIGHT_CENTER,
