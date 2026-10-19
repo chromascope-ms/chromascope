@@ -63,6 +63,10 @@ pub(super) struct Setup {
     pub levels: Vec<Level>,
     pub analytes: Vec<AnalyteSetup>,
     pub exclusions: Vec<Exclusion>,
+    /// Rows of samples that are not loaded right now (a project still opening, a deselected
+    /// sample): kept so their type, level and name come back with the file.
+    #[serde(default)]
+    pub parked: Vec<Row>,
 }
 
 /// "2" before "10", and "run-9" before "run-10".
@@ -103,13 +107,25 @@ impl Setup {
     /// Keeps the setup in step with the loaded samples and the method's analytes: new ones are
     /// added with defaults, vanished ones dropped, everything else is left as the user set it.
     pub fn sync(&mut self, samples: &[(String, String)], analytes: &[Analyte]) {
-        self.rows
-            .retain(|r| samples.iter().any(|s| s.0 == r.source));
+        let (kept, gone): (Vec<Row>, Vec<Row>) = std::mem::take(&mut self.rows)
+            .into_iter()
+            .partition(|r| samples.iter().any(|s| s.0 == r.source));
+        self.rows = kept;
+        self.parked
+            .retain(|p| !gone.iter().any(|g| g.source == p.source));
+        self.parked.extend(gone);
         let mut new: Vec<&str> = samples
             .iter()
             .map(|s| s.0.as_str())
             .filter(|p| !self.rows.iter().any(|r| r.source == *p))
             .collect();
+        // Samples that come back return with their settings and in their old order.
+        let (back, parked): (Vec<Row>, Vec<Row>) = std::mem::take(&mut self.parked)
+            .into_iter()
+            .partition(|p| new.contains(&p.source.as_str()));
+        self.parked = parked;
+        new.retain(|p| !back.iter().any(|b| b.source == *p));
+        self.rows.extend(back);
         new.sort_by(|a, b| natural(&stem(a), &stem(b)));
         for path in new {
             self.rows.push(Row::new(path));
@@ -142,7 +158,10 @@ impl Setup {
             }
         }
         self.exclusions.retain(|e| {
-            self.rows.iter().any(|r| stem(&r.source) == e.sample)
+            self.rows
+                .iter()
+                .chain(&self.parked)
+                .any(|r| stem(&r.source) == e.sample)
                 && names.contains(&e.analyte.as_str())
         });
     }
@@ -573,6 +592,29 @@ standard,26-12,s6,1,6
         );
         assert!(request.samples[0].exclusions.contains_key("target-1"));
         assert!(!request.samples[2].exclusions.contains_key("target-1"));
+    }
+    #[test]
+    fn samples_that_are_not_loaded_keep_their_settings_until_they_return() {
+        let (mut s, method) = setup();
+        let all: Vec<(String, String)> = s
+            .rows
+            .iter()
+            .map(|r| (r.source.clone(), r.id.clone()))
+            .collect();
+        s.rows[0].role = t::Role::Standard;
+        s.rows[0].level = "3".into();
+        let first = s.rows[0].source.clone();
+        // A project that is still opening: no sample is loaded yet.
+        s.sync(&[], &method.analytes);
+        assert!(s.rows.is_empty());
+        s.sync(&all[..2], &method.analytes);
+        s.sync(&all, &method.analytes);
+        assert_eq!(s.rows.len(), 6);
+        let back = s.rows.iter().find(|r| r.source == first).unwrap();
+        assert_eq!(
+            (back.role.clone(), back.level.as_str()),
+            (t::Role::Standard, "3")
+        );
     }
     #[test]
     fn analytes_without_calibration_need_no_standards() {
