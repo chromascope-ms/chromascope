@@ -190,7 +190,8 @@ pub(super) fn show(app: &mut super::MzViewerApp, ctx: &egui::Context) {
             });
         let mut section = egui::CollapsingHeader::new("Review AI proposals")
             .id_salt("review_ai_proposals")
-            .default_open(false);
+            // Closed unless a proposal is waiting for a decision.
+            .default_open(app.ai.review_summary().1 > 0);
         if app.ai.take_reveal() {
             section = section.open(Some(true));
         }

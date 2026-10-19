@@ -7,7 +7,7 @@ use eframe::egui::Color32;
 use egui_plot::{HLine, Line, MarkerShape, Points, VLine};
 use std::collections::BTreeSet;
 
-const EXCLUDED: &str = "Excluded during calibration review";
+pub(super) const EXCLUDED: &str = "Excluded during calibration review";
 pub(super) const FITS: [&str; 6] = [
     "Linear",
     "Quadratic",
@@ -188,6 +188,8 @@ pub(super) struct State {
     cfg: Option<t::CalibrationConfig>,
     excluded: BTreeSet<String>,
     error: String,
+    /// The preview was edited and the setup has not taken it over yet.
+    edited: bool,
 }
 impl State {
     /// Follows the analyte and run being browsed, so the include ticks match the curve preview.
@@ -197,6 +199,18 @@ impl State {
             self.reset(batch);
         }
     }
+    /// The edited preview (analyte, fit settings, excluded standards), once, for the setup.
+    pub(super) fn take_edit(&mut self) -> Option<(String, t::CalibrationConfig, BTreeSet<String>)> {
+        if !self.edited || self.batch.is_none() {
+            return None;
+        }
+        self.edited = false;
+        Some((
+            self.target.clone(),
+            self.cfg.clone()?,
+            self.excluded.clone(),
+        ))
+    }
     pub(super) fn is_included(&self, sample: &str) -> bool {
         !self.excluded.contains(sample)
     }
@@ -205,6 +219,7 @@ impl State {
         if !self.excluded.remove(sample) {
             self.excluded.insert(sample.to_owned());
         }
+        self.edited = true;
     }
     fn reset(&mut self, batch: &t::BatchResult) {
         let target = batch
@@ -237,8 +252,8 @@ impl State {
 
 /// Calibration curve of `target` (Xcalibur-style): title with equation, fit controls, the curve
 /// with standards, QCs and unknowns and a crosshair on `selected_sample`, then the standards
-/// and a comparison of fits. Changes are previewed; `Apply as new run` returns the recalculated
-/// batch for the caller to retain.
+/// and a comparison of fits. Changes are previewed here and handed to the setup; the Recalculate
+/// button of the results browser applies them.
 pub(super) fn curve_pane(
     state: &mut State,
     batch: &t::BatchResult,
@@ -246,20 +261,23 @@ pub(super) fn curve_pane(
     selected_sample: &str,
     plot_height: f32,
     ui: &mut egui::Ui,
-) -> Option<t::BatchResult> {
-    let current = batch.request.targets.iter().find(|t| t.id == target)?;
+) {
+    let Some(current) = batch.request.targets.iter().find(|t| t.id == target) else {
+        return;
+    };
     let name = current.quantifier.extraction.extraction.name.clone();
     if current.calibration.is_none() {
         crate::gui::widgets::strong(ui, &name);
         ui.label("Internal standard: measured in every injection, not calibrated.");
-        return None;
+        return;
     }
     if state.target != target || state.batch != Some(batch.batch_id) || state.cfg.is_none() {
         state.target = target.to_owned();
         state.reset(batch);
     }
-    let mut applied: Option<t::BatchResult> = None;
-    let mut cfg = state.cfg.clone()?;
+    let Some(mut cfg) = state.cfg.clone() else {
+        return;
+    };
     let rows = standards(batch, target);
     let usable = |r: &Standard| r.response.is_some() && !state.excluded.contains(&r.sample);
     let points: Vec<(String, f64, f64)> = rows
@@ -268,6 +286,29 @@ pub(super) fn curve_pane(
         .map(|r| (r.sample.clone(), r.x, r.response.unwrap()))
         .collect();
     let mut changed = fit_controls(ui, "cal_fit", &mut cfg);
+    // Weighting by 1/x is undefined for a standard at concentration 0.
+    let zero: Vec<&str> = rows
+        .iter()
+        .filter(|r| r.x <= 0.0 && usable(r))
+        .map(|r| r.sample.as_str())
+        .collect();
+    if !zero.is_empty()
+        && cfg.curve != t::Curve::PointToPoint
+        && matches!(
+            cfg.weighting,
+            t::Weighting::InverseX | t::Weighting::InverseX2
+        )
+    {
+        ui.colored_label(
+            ui.visuals().warn_fg_color,
+            format!(
+                "{} included standard(s) have concentration 0 ({}): untick them in the table, or choose another weighting.",
+                zero.len(),
+                zero.iter().take(4).copied().collect::<Vec<_>>().join(", ")
+                    + if zero.len() > 4 { ", …" } else { "" }
+            ),
+        );
+    }
     // The range can only cover concentrations that are among the included standards.
     let low = points.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
     let high = points.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
@@ -299,33 +340,13 @@ pub(super) fn curve_pane(
     let differs = original.as_ref() != Some(&cfg) || original_excluded != state.excluded;
     if differs {
         ui.horizontal_wrapped(|ui| {
-            ui.colored_label(ui.visuals().warn_fg_color, "Preview — not applied yet.");
-            if ui
-                .add_enabled(model.is_ok(), egui::Button::new("Apply as new run"))
-                .on_hover_text("Recalculates all concentrations with this calibration from the measured peaks and keeps it as a new run. Reviews on the earlier run are not carried over.")
-                .clicked()
-            {
-                let mut request = batch.request.clone();
-                for t in request.targets.iter_mut().filter(|t| t.id == target) {
-                    t.calibration = Some(cfg.clone());
-                }
-                for s in request.samples.iter_mut().filter(|s| s.role == t::Role::Standard) {
-                    if state.excluded.contains(&s.id) {
-                        s.exclusions.entry(target.to_owned()).or_insert_with(|| EXCLUDED.into());
-                    } else {
-                        s.exclusions.remove(target);
-                    }
-                }
-                match t::evaluate(request, batch.observations.clone(), batch.source_hashes.clone()) {
-                    Ok(next) => {
-                        state.error.clear();
-                        applied = Some(next)
-                    }
-                    Err(e) => state.error = e.to_string(),
-                }
-            }
+            ui.colored_label(
+                ui.visuals().warn_fg_color,
+                "Preview — press Recalculate (top of this tab) to apply.",
+            );
             if ui.button("Reset").clicked() {
                 state.batch = None;
+                state.edited = true;
             }
         });
     }
@@ -497,7 +518,7 @@ pub(super) fn curve_pane(
                     changed = true;
                 }
             }
-            ui.small("Click a standard on the curve to exclude or include it; changes are previewed until applied.");
+            ui.small("Click a standard on the curve to exclude or include it; changes are applied by Recalculate.");
         }
         Err(e) => {
             ui.colored_label(ui.visuals().error_fg_color, e.to_string());
@@ -593,8 +614,8 @@ pub(super) fn curve_pane(
     });
     if changed {
         state.cfg = Some(cfg);
+        state.edited = true;
     }
-    applied
 }
 fn usable_id(rows: &[Standard], excluded: &BTreeSet<String>, sample: &str) -> bool {
     rows.iter()

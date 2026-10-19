@@ -149,39 +149,45 @@ impl Setup {
     pub fn analyte_names(&self) -> Vec<String> {
         self.analytes.iter().map(|a| a.name.clone()).collect()
     }
-    /// Remembers the fit settings and exclusions of a batch the user adjusted in the curve review.
-    pub fn absorb(&mut self, batch: &t::BatchResult) {
-        let name_of = |id: &str| {
-            batch
-                .request
-                .targets
-                .iter()
-                .find(|t| t.id == id)
-                .map(|t| t.quantifier.extraction.extraction.name.clone())
-        };
-        for target in &batch.request.targets {
-            if let (Some(cfg), Some(a)) = (
-                &target.calibration,
-                self.analytes
-                    .iter_mut()
-                    .find(|a| a.name == target.quantifier.extraction.extraction.name),
-            ) {
-                a.cfg = cfg.clone();
-            }
-        }
-        self.exclusions = batch
+    /// Takes over what the user changed in the curve review of one analyte (`target` is the
+    /// batch's target id): its fit settings and the standards left out of the calibration.
+    pub fn take_preview(
+        &mut self,
+        batch: &t::BatchResult,
+        target: &str,
+        cfg: &t::CalibrationConfig,
+        excluded: &std::collections::BTreeSet<String>,
+    ) {
+        let Some(name) = batch
             .request
-            .samples
+            .targets
             .iter()
-            .flat_map(|s| {
-                s.exclusions.iter().filter_map(|(target, reason)| {
-                    Some(Exclusion {
-                        sample: s.id.clone(),
-                        analyte: name_of(target)?,
-                        reason: reason.clone(),
-                    })
-                })
-            })
+            .find(|t| t.id == target)
+            .map(|t| t.quantifier.extraction.extraction.name.clone())
+        else {
+            return;
+        };
+        if let Some(a) = self.analytes.iter_mut().find(|a| a.name == name) {
+            a.cfg = cfg.clone();
+        }
+        let old: Vec<Exclusion> = std::mem::take(&mut self.exclusions);
+        self.exclusions = old
+            .iter()
+            .filter(|e| e.analyte != name)
+            .cloned()
+            .chain(excluded.iter().map(|sample| {
+                Exclusion {
+                    sample: sample.clone(),
+                    analyte: name.clone(),
+                    reason: old
+                        .iter()
+                        .find(|e| &e.sample == sample && e.analyte == name)
+                        .map_or_else(
+                            || super::calibration::EXCLUDED.to_owned(),
+                            |e| e.reason.clone(),
+                        ),
+                }
+            }))
             .collect();
     }
     /// The targeted batch request described by this setup, or everything still missing.

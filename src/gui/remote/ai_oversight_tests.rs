@@ -1005,6 +1005,8 @@ fn an_engine_proposal_queued_in_a_project_is_found_when_the_project_is_opened_wi
 fn an_empty_review_list_explains_what_a_proposal_is_and_how_to_get_one() {
     let mut desktop = Desktop::start(vec![], false, false, false);
     desktop.app.delivery.open = true;
+    // The section is closed while nothing waits for a decision; open it as the user would.
+    desktop.app.ai.reveal_selected();
     frame(&mut desktop, vec![]);
     let output = frame(&mut desktop, vec![]);
     let ctx = desktop.ctx.clone();
@@ -1029,6 +1031,7 @@ fn an_empty_review_list_explains_what_a_proposal_is_and_how_to_get_one() {
     let ctx = egui::Context::default();
     let mut plain = MzViewerApp::default();
     plain.delivery.open = true;
+    plain.ai.reveal_selected();
     draw(&ctx, &mut plain, vec![]);
     let output = draw(&ctx, &mut plain, vec![]);
     assert!(shows(&output, plain_only));

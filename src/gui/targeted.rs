@@ -777,16 +777,6 @@ pub(super) fn panel(
         return;
     }
     let outcome = browser::show(state, ui);
-    if let Some(next) = outcome.applied {
-        state.setup.absorb(&next);
-        match state.retain(next) {
-            Ok(()) => {
-                state.selected = 0;
-                state.message = "New run created with the changed calibration".into();
-            }
-            Err(e) => state.message = e,
-        }
-    }
     if let Some(accepted) = outcome.review {
         let current = state.current_batch;
         if let Some(batch) = state.history.get(current) {

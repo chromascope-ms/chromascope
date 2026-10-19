@@ -46,7 +46,6 @@ impl Filter {
 /// What the caller must do once the borrows of the state are released.
 #[derive(Default)]
 pub(super) struct Outcome {
-    pub applied: Option<t::BatchResult>,
     /// `Some(true)` = accept, `Some(false)` = reject the selected concentration.
     pub review: Option<bool>,
 }
@@ -343,7 +342,6 @@ fn table_pane(
     selected_key: Option<&str>,
     selected: &mut usize,
     filter: &mut Filter,
-    toggled: &mut Option<String>,
     height: f32,
 ) {
     let weights = [
@@ -359,9 +357,6 @@ fn table_pane(
         &weights,
     ) {
         *selected = indices[i];
-    }
-    if let Some(key) = table::take_toggle(ui.ctx(), "targeted_browser_rows") {
-        *toggled = Some(key);
     }
     ui.horizontal(|ui| {
         for f in Filter::ALL {
@@ -396,19 +391,16 @@ fn curve(
     batch: &t::BatchResult,
     target: &str,
     sample: &str,
-    outcome: &mut Outcome,
     height: f32,
 ) {
-    if let Some(next) = crate::gui::calibration::curve_pane(
+    crate::gui::calibration::curve_pane(
         cal,
         batch,
         target,
         sample,
         (height - 190.0).max(140.0),
         ui,
-    ) {
-        outcome.applied = Some(next);
-    }
+    );
 }
 
 /// Draws the browser for the current run. Layout: results table (top left), peak and curve
@@ -426,6 +418,7 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
         reason,
         message,
         revisit,
+        setup,
         ..
     } = state;
     let Some(batch) = history.get(*current_batch) else {
@@ -531,7 +524,6 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
     if batch.request.targets.iter().any(|t| &t.id == browse_target) {
         cal.follow(batch, browse_target);
     }
-    let mut toggled: Option<String> = None;
     let size = ui.available_size();
     let selected_sample = batch
         .results
@@ -572,7 +564,6 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                                 selected_key.as_deref(),
                                 selected,
                                 filter,
-                                &mut toggled,
                                 top - 40.0,
                             );
                             ui.add_space(4.0);
@@ -618,7 +609,6 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                                                     batch,
                                                     browse_target,
                                                     &selected_sample,
-                                                    &mut outcome,
                                                     bottom,
                                                 );
                                             });
@@ -656,25 +646,22 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                     selected_key.as_deref(),
                     selected,
                     filter,
-                    &mut toggled,
                     240.0,
                 );
                 ui.separator();
                 peak_and_trends(ui, batch, browse_target, selected, peak_tab, revisit, 320.0);
                 ui.separator();
-                curve(
-                    ui,
-                    cal,
-                    batch,
-                    browse_target,
-                    &selected_sample,
-                    &mut outcome,
-                    420.0,
-                );
+                curve(ui, cal, batch, browse_target, &selected_sample, 420.0);
             });
     }
-    if let Some((sample, _)) = toggled.as_deref().and_then(|k| k.rsplit_once('/')) {
-        cal.toggle(sample);
+    if let Some(key) = table::take_toggle(ui.ctx(), "targeted_browser_rows") {
+        if let Some((sample, _)) = key.rsplit_once('/') {
+            cal.toggle(sample);
+        }
+    }
+    // What was changed in the preview is what Recalculate will use.
+    if let Some((target, cfg, excluded)) = cal.take_edit() {
+        setup.take_preview(batch, &target, &cfg, &excluded);
     }
     outcome
 }

@@ -30,7 +30,9 @@ The stage has four numbered parts, from top to bottom.
 3. **3 · Analytes and calibration**. Choose the **Calibration** (**External standard (peak area)**, or an internal standard you mark with **Internal standard (measured, not quantified)**), the **Fit** and the **Weighting**, the **Unit**, the limits (**LOD**, **LOQ**, **Accuracy tolerance %**, **Precision limit %**) and whether to **Extrapolate end standards**. **Copy these settings to all analytes** saves repetition.
 4. **4 · Calculate concentrations**. Choose **Calculate concentrations**. The **Results browser** shows each sample with its flags. A missing or failed area stays empty and is never counted as zero. Values below the limit of detection or outside the calibration range are marked.
 
-You can remove a standard from the fit and compare fits; **Apply as new run** keeps the change as a new calculation instead of overwriting the old one. **Recalculate** appears when the peaks or the settings have changed since the last calculation.
+To leave a standard out of the calibration line, untick it in the **Include** column of the results table (a standard at concentration 0 must be unticked when you use 1/x weighting). You can also compare fits. The curve shows a preview, and **Recalculate** applies it as a new calculation without overwriting the old one. **Recalculate** is also what you press when the peaks or the settings have changed since the last calculation.
+
+An analyte does not have to be quantified. Choose **None: report peak areas only** in step 3 and no standards or levels are needed; its peak areas stay in the results of tab 1 and in the audit package.
 
 ## Stage 3: batch QC
 
