@@ -21,9 +21,15 @@ pub(super) struct AnalyteSetup {
     pub is_standard: bool,
     /// Name of the internal-standard analyte used for this one; none = external calibration.
     pub internal_standard: Option<String>,
+    /// False = report peak areas only: no standards, levels or calibration are needed.
+    #[serde(default = "yes")]
+    pub quantify: bool,
     pub cfg: t::CalibrationConfig,
     /// Acceptable peak area of this analyte when it is used as an internal standard.
     pub area_bounds: [f64; 2],
+}
+fn yes() -> bool {
+    true
 }
 impl AnalyteSetup {
     fn new(name: &str) -> Self {
@@ -31,6 +37,7 @@ impl AnalyteSetup {
             name: name.into(),
             is_standard: false,
             internal_standard: None,
+            quantify: true,
             cfg: t::CalibrationConfig {
                 curve: t::Curve::Polynomial,
                 degree: 1,
@@ -105,12 +112,7 @@ impl Setup {
             .collect();
         new.sort_by(|a, b| natural(&stem(a), &stem(b)));
         for path in new {
-            let mut row = Row::new(path);
-            // Sample IDs must be unique.
-            while self.rows.iter().any(|r| r.id == row.id) {
-                row.id.push('\'');
-            }
-            self.rows.push(row);
+            self.rows.push(Row::new(path));
         }
         let names: Vec<&str> = analytes
             .iter()
@@ -140,7 +142,8 @@ impl Setup {
             }
         }
         self.exclusions.retain(|e| {
-            self.rows.iter().any(|r| r.id == e.sample) && names.contains(&e.analyte.as_str())
+            self.rows.iter().any(|r| stem(&r.source) == e.sample)
+                && names.contains(&e.analyte.as_str())
         });
     }
     pub fn analyte_names(&self) -> Vec<String> {
@@ -202,17 +205,27 @@ impl Setup {
                 .iter()
                 .find(|e| e.sample == sample && e.analyte == analyte)
         };
-        let calibrated: Vec<&AnalyteSetup> =
-            self.analytes.iter().filter(|a| !a.is_standard).collect();
+        let calibrated: Vec<&AnalyteSetup> = self
+            .analytes
+            .iter()
+            .filter(|a| !a.is_standard && a.quantify)
+            .collect();
+        if calibrated.is_empty() && !self.analytes.is_empty() {
+            problems.push(
+                "No analyte is set up for concentrations; the peak areas are in tab 1 (set a calibration in step 3 to quantify)."
+                    .to_owned(),
+            );
+        }
         let mut seen = std::collections::HashSet::new();
         for r in &self.rows {
-            if r.id.trim().is_empty() || !seen.insert(r.id.as_str()) {
-                problems.push(format!("Sample ID '{}' is empty or used twice.", r.id));
+            // Sample IDs are names and may repeat (replicates); the file identifies the injection.
+            if !seen.insert(stem(&r.source)) {
+                problems.push(format!("File '{}' is loaded twice.", stem(&r.source)));
             }
             if !r.dilution.is_finite() || r.dilution <= 0.0 {
                 problems.push(format!("Sample '{}' needs a dilution above 0.", r.id));
             }
-            if matches!(r.role, t::Role::Standard | t::Role::Qc) {
+            if !calibrated.is_empty() && matches!(r.role, t::Role::Standard | t::Role::Qc) {
                 match level(&r.level) {
                     None => problems.push(format!(
                         "{} '{}' has no level ({}).",
@@ -244,7 +257,9 @@ impl Setup {
             let points: Vec<f64> = self
                 .rows
                 .iter()
-                .filter(|r| r.role == t::Role::Standard && excluded(&r.id, &a.name).is_none())
+                .filter(|r| {
+                    r.role == t::Role::Standard && excluded(&stem(&r.source), &a.name).is_none()
+                })
                 .filter_map(|r| level(&r.level)?.conc.get(&a.name).copied())
                 .collect();
             let low = points.iter().copied().fold(f64::INFINITY, f64::min);
@@ -269,6 +284,9 @@ impl Setup {
                     .analytes
                     .iter()
                     .find(|a| a.name == analyte.extraction.name)?;
+                if !a.is_standard && !a.quantify {
+                    return None;
+                }
                 let calibration = (!a.is_standard).then(|| {
                     let range = ranges.next().unwrap();
                     let mut cfg = a.cfg.clone();
@@ -302,7 +320,7 @@ impl Setup {
                 let nominal = if needs_levels {
                     self.analytes
                         .iter()
-                        .filter(|a| !a.is_standard)
+                        .filter(|a| !a.is_standard && a.quantify)
                         .filter_map(|a| {
                             Some((target_id(&a.name)?, *level(&r.level)?.conc.get(&a.name)?))
                         })
@@ -311,7 +329,8 @@ impl Setup {
                     Default::default()
                 };
                 t::Sample {
-                    id: r.id.clone(),
+                    id: stem(&r.source),
+                    name: r.id.clone(),
                     source: r.source.clone(),
                     role: r.role.clone(),
                     injection_order: i as u32 + 1,
@@ -320,7 +339,7 @@ impl Setup {
                     exclusions: self
                         .exclusions
                         .iter()
-                        .filter(|e| e.sample == r.id)
+                        .filter(|e| e.sample == stem(&r.source))
                         .filter_map(|e| Some((target_id(&e.analyte)?, e.reason.clone())))
                         .collect(),
                 }
@@ -474,7 +493,8 @@ mod tests {
             })
             .collect();
         let request = s.build_request(&method).unwrap();
-        assert_eq!(request.samples[0].id, "s1");
+        assert_eq!(request.samples[0].id, "26-7");
+        assert_eq!(request.samples[0].name, "s1");
         assert_eq!(request.samples[2].dilution, 2.0);
         assert_eq!(request.samples[2].nominal["target-1"], 10.0);
         assert!(request.samples[3].nominal.is_empty());
@@ -487,7 +507,7 @@ mod tests {
         crate::targeted::validate(&request).unwrap();
         // An excluded standard no longer counts for the range, and survives the rebuild.
         s.exclusions.push(Exclusion {
-            sample: "s1".into(),
+            sample: "26-7".into(),
             analyte: "Analyte".into(),
             reason: "bad".into(),
         });
@@ -497,5 +517,25 @@ mod tests {
             [5.0, 10.0]
         );
         assert_eq!(request.samples[0].exclusions["target-1"], "bad");
+        // Replicates may share a sample ID.
+        s.rows[1].id = "s1".into();
+        let request = s.build_request(&method).unwrap();
+        assert_eq!(request.samples[0].name, request.samples[1].name);
+        assert_ne!(request.samples[0].id, request.samples[1].id);
+        crate::targeted::validate(&request).unwrap();
+    }
+    #[test]
+    fn analytes_without_calibration_need_no_standards() {
+        let (mut s, method) = setup();
+        for a in &mut s.analytes {
+            a.quantify = false;
+        }
+        let problems = s.build_request(&method).err().unwrap();
+        assert!(
+            problems
+                .iter()
+                .all(|p| !p.contains("two or more") && !p.contains("no level")),
+            "{problems:?}"
+        );
     }
 }

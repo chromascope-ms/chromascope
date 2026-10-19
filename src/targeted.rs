@@ -152,7 +152,11 @@ pub struct Target {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Sample {
+    /// Unique key of the injection (results, exclusions and audit records refer to it).
     pub id: String,
+    /// Sample name shown to people; replicate injections of one sample may share it.
+    #[serde(default)]
+    pub name: String,
     pub source: String,
     pub role: Role,
     pub injection_order: u32,
@@ -161,6 +165,16 @@ pub struct Sample {
     pub nominal: BTreeMap<String, f64>,
     /// Explicit calibration exclusions with reasons, never inferred from QC flags.
     pub exclusions: BTreeMap<String, String>,
+}
+impl Sample {
+    /// The name to show: the sample name, or the injection key when none was given.
+    pub fn label(&self) -> &str {
+        if self.name.trim().is_empty() {
+            &self.id
+        } else {
+            &self.name
+        }
+    }
 }
 #[cfg_attr(feature = "mcp-headless", derive(rmcp::schemars::JsonSchema))]
 #[cfg_attr(feature = "mcp-headless", schemars(crate = "rmcp::schemars"))]
@@ -1450,7 +1464,7 @@ pub fn review(
 }
 pub fn csv(batch: &BatchResult) -> Result<String> {
     verify(batch)?;
-    let mut out=String::from("sample,target,state,response,injected_concentration,concentration,unit,dilution,accuracy_percent,reviewed,flags,role,injection_order,nominal_concentration,response_unit,qualifier_ratios\n");
+    let mut out=String::from("sample,target,state,response,injected_concentration,concentration,unit,dilution,accuracy_percent,reviewed,flags,role,injection_order,nominal_concentration,response_unit,qualifier_ratios,sample_name\n");
     let quote = |s: String| crate::csv_text::cell(&s);
     let number = |n: Option<f64>| n.map(|v| v.to_string()).unwrap_or_default();
     for r in &batch.results {
@@ -1467,7 +1481,7 @@ pub fn csv(batch: &BatchResult) -> Result<String> {
             .find(|s| s.id == r.sample)
             .unwrap();
         out.push_str(&format!(
-            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}\n",
             quote(r.sample.clone()),
             quote(r.target.clone()),
             quote(format!("{:?}", r.state)),
@@ -1494,7 +1508,8 @@ pub fn csv(batch: &BatchResult) -> Result<String> {
                 }
                 .into()
             ),
-            quote(serde_json::to_string(&r.qualifier_ratios).map_err(invalid)?)
+            quote(serde_json::to_string(&r.qualifier_ratios).map_err(invalid)?),
+            quote(sample.label().into())
         ));
     }
     Ok(out)

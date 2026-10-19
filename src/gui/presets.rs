@@ -46,13 +46,24 @@ pub(super) fn schedule(app: &mut MzViewerApp) {
     {
         return;
     }
-    let Some(id) = app.active_file_id else {
+    // The selected sample first, then every other loaded one, so all samples show their traces
+    // without being clicked one by one.
+    let pending = |id: &usize| {
+        !app.presets.applied.contains(id)
+            && !app.presets.failed.contains_key(id)
+            && app.files.get(id).is_some_and(|f| !f.is_loading)
+    };
+    let mut others: Vec<usize> = app.files.keys().copied().collect();
+    others.sort_unstable();
+    let Some(id) = app
+        .active_file_id
+        .into_iter()
+        .chain(others)
+        .find(|id| pending(id))
+    else {
         return;
     };
-    if app.presets.applied.contains(&id) || app.presets.failed.contains_key(&id) {
-        return;
-    }
-    let Some(file) = app.files.get(&id).filter(|f| !f.is_loading) else {
+    let Some(file) = app.files.get(&id) else {
         return;
     };
     let path = std::path::PathBuf::from(&file.path);
@@ -252,12 +263,13 @@ mod tests {
         app.presets.specs.as_mut().unwrap()[0].1.acquisition = Some(AcquisitionMode::SIM);
         schedule(&mut app);
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
-        while app.presets.rx.is_some() {
+        // Every loaded sample is tried once, the selected one first.
+        while app.presets.rx.is_some() || app.presets.failed.len() < 2 {
             assert!(std::time::Instant::now() < deadline);
             poll(&mut app, &egui::Context::default());
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert!(app.presets.failed.contains_key(&10));
+        assert!(app.presets.failed.contains_key(&10) && app.presets.failed.contains_key(&11));
         poll(&mut app, &egui::Context::default());
         assert!(app.presets.rx.is_none());
         assert!(super::super::workspace::trace_keys(&app, true).is_empty());

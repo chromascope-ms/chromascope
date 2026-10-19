@@ -109,9 +109,12 @@ fn review(root: &Path, p: &Project) -> Value {
     let t = &ws["quant"]["targeted"];
     let history = t["history"].as_array().map(Vec::as_slice).unwrap_or(&[]);
     let index = t["current_batch"].as_u64().unwrap_or(0) as usize;
-    let Some(batch) = history.get(index).or(history.last()) else {
-        return Value::Null;
-    };
+    // Without a calculated batch the report still shows the measured peaks (areas only).
+    let batch = history
+        .get(index)
+        .or(history.last())
+        .cloned()
+        .unwrap_or(Value::Null);
     let peaks: Vec<Value> = ws["quant"]["results"]
         .as_array()
         .map(Vec::as_slice)
@@ -139,6 +142,9 @@ fn review(root: &Path, p: &Project) -> Value {
         .and_then(|r| r.last())
         .cloned()
         .unwrap_or(Value::Null);
+    if batch.is_null() && peaks.is_empty() {
+        return Value::Null;
+    }
     json!({"batch": batch, "qc": qc, "peaks": peaks})
 }
 pub fn html(value: &Value) -> Result<String> {

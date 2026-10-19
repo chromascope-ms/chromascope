@@ -353,7 +353,7 @@ fn levels_section(state: &mut UiState, ui: &mut egui::Ui) {
             .setup
             .analytes
             .iter()
-            .filter(|a| !a.is_standard)
+            .filter(|a| !a.is_standard && a.quantify)
             .map(|a| a.name.clone())
             .collect();
         let all = state.setup.analyte_names();
@@ -394,7 +394,7 @@ fn levels_section(state: &mut UiState, ui: &mut egui::Ui) {
             .setup
             .analytes
             .iter()
-            .filter(|a| !a.is_standard)
+            .filter(|a| !a.is_standard && a.quantify)
             .map(|a| a.cfg.unit.label())
             .collect();
         let mut remove = None;
@@ -477,20 +477,34 @@ fn analytes_section(state: &mut UiState, ui: &mut egui::Ui) {
                 }
                 ui.horizontal_wrapped(|ui| {
                     ui.label("Calibration");
-                    let shown = match &a.internal_standard {
-                        Some(i) => format!("Internal standard: {i}"),
-                        None => "External standard (peak area)".to_owned(),
+                    let shown = match (&a.internal_standard, a.quantify) {
+                        (_, false) => "None: report peak areas only".to_owned(),
+                        (Some(i), _) => format!("Internal standard: {i}"),
+                        (None, _) => "External standard (peak area)".to_owned(),
                     };
                     egui::ComboBox::from_id_salt(("cal_mode", i)).selected_text(shown).show_ui(ui, |ui| {
-                        ui.selectable_value(&mut a.internal_standard, None, "External standard (peak area)");
+                        if ui.selectable_label(!a.quantify, "None: report peak areas only").clicked() {
+                            a.quantify = false;
+                        }
+                        if ui.selectable_label(a.quantify && a.internal_standard.is_none(), "External standard (peak area)").clicked() {
+                            a.quantify = true;
+                            a.internal_standard = None;
+                        }
                         for name in &standards {
-                            ui.selectable_value(&mut a.internal_standard, Some(name.clone()), format!("Internal standard: {name}"));
+                            if ui.selectable_label(a.quantify && a.internal_standard.as_ref() == Some(name), format!("Internal standard: {name}")).clicked() {
+                                a.quantify = true;
+                                a.internal_standard = Some(name.clone());
+                            }
                         }
                     });
                     if standards.is_empty() {
                         ui.small("Mark an analyte above as internal standard to offer internal calibration.");
                     }
                 });
+                if !a.quantify {
+                    ui.small("No standards or levels are needed; the peak areas are in the tab 1 results.");
+                    return;
+                }
                 super::calibration::fit_controls(ui, ("cal_setup_fit", i), &mut a.cfg);
                 ui.horizontal_wrapped(|ui| {
                     ui.label("Unit");
@@ -877,6 +891,14 @@ fn header(state: &mut UiState, method: &Method, measurements: &[Measurement], ui
 fn next_step(state: &UiState, method: &Method, measurements: &[Measurement]) -> String {
     if measurements.is_empty() {
         "Start in tab 1: select samples, run the batch and review the peaks. Then come back here."
+            .into()
+    } else if state
+        .setup
+        .analytes
+        .iter()
+        .all(|a| a.is_standard || !a.quantify)
+    {
+        "Peak areas are ready in tab 1. Choose a calibration in step 3 only if you also want concentrations."
             .into()
     } else if let Err(p) = state.setup.build_request(method) {
         format!(

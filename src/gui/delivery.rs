@@ -78,16 +78,15 @@ pub(super) fn show(app: &mut super::MzViewerApp, ctx: &egui::Context) {
     }
     let mut open = app.delivery.open;
     super::workbench::analytical_panel(ctx, super::workflow::AUDIT_PACKAGE, &mut open, |ui| {
+        release_review(app, ctx, ui);
+        ui.add_space(8.0);
         let mut section = egui::CollapsingHeader::new("Review AI proposals")
             .id_salt("review_ai_proposals")
-            .default_open(true);
+            .default_open(false);
         if app.ai.take_reveal() {
             section = section.open(Some(true));
         }
         section.show(ui, |ui| super::ai_review::panel(app, ui));
-        ui.separator();
-        release_review(app, ctx, ui);
-        ui.add_space(8.0);
         let s = &mut app.delivery;
         egui::CollapsingHeader::new("Package options and evidence")
             .id_salt("report_options")
@@ -304,9 +303,20 @@ fn release_review(app: &mut super::MzViewerApp, ctx: &egui::Context, ui: &mut eg
                 {
                     let name = std::path::Path::new(&suggest_destination(&s.project))
                         .file_name()
-                        .map(|n| n.to_owned())
+                        .map(|n| n.to_string_lossy().into_owned())
                         .unwrap_or_else(|| "report".into());
-                    s.destination = parent.join(name).display().to_string();
+                    // A name that is free in the chosen folder: exports never overwrite.
+                    let free = (1..100)
+                        .map(|n| {
+                            if n == 1 {
+                                name.clone()
+                            } else {
+                                format!("{name}-{n}")
+                            }
+                        })
+                        .find(|f| !parent.join(f).exists())
+                        .unwrap_or(name);
+                    s.destination = parent.join(free).display().to_string();
                 }
             }
         });

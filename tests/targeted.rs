@@ -63,6 +63,7 @@ fn batch() -> BatchRequest {
     for (i, x) in [0.5, 1.0, 2.0, 5.0, 10.0].iter().enumerate() {
         samples.push(Sample {
             id: format!("std{i}"),
+            name: String::new(),
             source: "synthetic evidence".into(),
             role: Role::Standard,
             injection_order: i as u32,
@@ -90,6 +91,7 @@ fn batch() -> BatchRequest {
     {
         samples.push(Sample {
             id: format!("sample{i}"),
+            name: String::new(),
             source: "synthetic evidence".into(),
             role: role.clone(),
             injection_order: 5 + i as u32,

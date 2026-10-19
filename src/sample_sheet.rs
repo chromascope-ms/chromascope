@@ -4,7 +4,7 @@
 use crate::domain::{EngineError, Result};
 use crate::targeted::Role;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 fn invalid(message: impl ToString) -> EngineError {
     EngineError::new("invalid_parameters", message)
@@ -172,10 +172,6 @@ pub fn apply(rows: &mut Vec<Row>, text: &str) -> Result<Vec<String>> {
         }
         r.level = cell(level_col).cloned().unwrap_or_default();
     }
-    let mut seen = HashSet::new();
-    if let Some(r) = updated.iter().find(|r| !seen.insert(r.id.clone())) {
-        return Err(invalid(format!("Sample ID '{}' is used twice", r.id)));
-    }
     for (i, r) in updated.iter().enumerate() {
         if !order.contains(&i) {
             notes.push(format!(
@@ -316,8 +312,11 @@ mod tests {
         assert!(apply(&mut r, "file name,sample type\n261009-7,wizard\n").is_err());
         assert!(apply(&mut r, "file name,dilution\n261009-7,abc\n").is_err());
         assert!(apply(&mut r, "file name\n261009-7\n261009-7\n").is_err());
-        assert!(apply(&mut r, "file name,sample id\n261009-7,a\n261009-10,a\n").is_err());
         assert_eq!(r, before);
+        // Replicates share a sample ID.
+        apply(&mut r, "file name,sample id\n261009-7,a\n261009-10,a\n").unwrap();
+        assert_eq!(r[0].id, "a");
+        assert_eq!(r[1].id, "a");
     }
     #[test]
     fn the_template_round_trips() {

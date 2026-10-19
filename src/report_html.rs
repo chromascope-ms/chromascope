@@ -697,7 +697,7 @@ fn summary(h: &mut String, c: &Ctx) {
                 what.extend(flags);
                 items.push(format!(
                     "<b>{}</b> · {} ({}): {}",
-                    escape(&s.id),
+                    escape(s.label()),
                     escape(&Ctx::analyte_name(t)),
                     role_label(&s.role),
                     escape(&what.join("; "))
@@ -962,7 +962,7 @@ fn concentration_section(h: &mut String, c: &Ctx) {
                     ""
                 },
                 s.injection_order,
-                escape(&s.id),
+                escape(s.label()),
                 escape(&file),
                 role_label(&s.role),
                 r.and_then(|r| r.response).map_or("–".into(), area_text),
@@ -1071,7 +1071,7 @@ fn peak_section(h: &mut String, c: &Ctx) {
                 h,
                 "<figure class=\"peak {class}\">{}<figcaption><b>{}</b> · {} · {}<br>",
                 peak_svg(p),
-                escape(&s.id),
+                escape(s.label()),
                 escape(&file),
                 role_label(&s.role)
             );
@@ -1102,10 +1102,59 @@ fn peak_section(h: &mut String, c: &Ctx) {
     }
 }
 
+/// Peak areas and figures of every measured peak, for a project with no calculated batch.
+fn areas_body(review: &Value) -> Option<String> {
+    let peaks = peaks_of(review);
+    if peaks.is_empty() {
+        return None;
+    }
+    let names: Vec<&str> = review["peaks"]
+        .as_array()?
+        .iter()
+        .map(|m| m["sample"].as_str().unwrap_or(""))
+        .collect();
+    let mut h = String::from("<h2>Peak areas</h2><p class=\"dim\">No concentrations were calculated: no calibration is saved in this project. Areas are in instrument intensity &times; minute.</p><table><tr><th>Sample</th><th>File</th><th>Analyte</th><th class=\"n\">RT (min)</th><th class=\"n\">Area</th><th>Quality</th><th>Review</th></tr>");
+    for (p, name) in peaks.iter().zip(&names) {
+        let _ = write!(
+            h,
+            "<tr><td>{}</td><td>{}</td><td>{}</td><td class=\"n\">{}</td><td class=\"n\">{}</td><td>{}</td><td>{}</td></tr>",
+            escape(name),
+            escape(&p.file),
+            escape(&p.analyte),
+            if p.has_peak { format!("{:.2}", p.apex) } else { String::new() },
+            if p.has_peak { area_text(p.area) } else { "no peak".into() },
+            if p.has_peak { format!("{} {}", capitalize(&p.tier), p.score) } else { String::new() },
+            if reviewed(&p.status) { "Reviewed" } else { "Not reviewed" }
+        );
+    }
+    h.push_str("</table><h2 class=\"pb\">Peaks</h2><div class=\"peaks\">");
+    for (p, name) in peaks.iter().zip(&names) {
+        let class = if !p.has_peak {
+            "bad"
+        } else if !p.flags.is_empty() {
+            "flag"
+        } else {
+            ""
+        };
+        let _ = write!(
+            h,
+            "<figure class=\"peak {class}\">{}<figcaption><b>{}</b> · {} · {}</figcaption></figure>",
+            peak_svg(p),
+            escape(name),
+            escape(&p.file),
+            escape(&p.analyte)
+        );
+    }
+    h.push_str("</div>");
+    Some(h)
+}
+
 /// The report body for a project, or `None` when it holds no targeted quantification.
 pub(crate) fn body(sections: &[String], value: &Value) -> Option<String> {
     let review = value.get("review").filter(|r| r.is_object())?;
-    let batch: BatchResult = serde_json::from_value(review["batch"].clone()).ok()?;
+    let Ok(batch) = serde_json::from_value::<BatchResult>(review["batch"].clone()) else {
+        return areas_body(review);
+    };
     let mut results = batch.results.clone();
     for rev in &batch.reviews {
         if let Some(row) = results
