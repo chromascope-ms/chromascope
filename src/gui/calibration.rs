@@ -309,24 +309,13 @@ pub(super) fn curve_pane(
             ),
         );
     }
-    // The range can only cover concentrations that are among the included standards.
+    // The range is always that of the included standards (Recalculate does the same).
     let low = points.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
     let high = points.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
-    if low.is_finite() && (cfg.range[0] < low || cfg.range[1] > high) {
-        ui.horizontal_wrapped(|ui| {
-            ui.colored_label(
-                ui.visuals().warn_fg_color,
-                format!(
-                    "Range {}–{} is wider than the included standards ({low}–{high}).",
-                    cfg.range[0], cfg.range[1]
-                ),
-            );
-            if ui.small_button("Fit range to standards").clicked() {
-                cfg.range = [low, high];
-                cfg.loq = cfg.loq.clamp(cfg.lod, high);
-                changed = true;
-            }
-        });
+    if low.is_finite() && cfg.range != [low, high] {
+        cfg.range = [low, high];
+        cfg.loq = cfg.loq.clamp(cfg.lod, high);
+        changed = true;
     }
     let model = t::fit(&points, &cfg);
     let original = current.calibration.clone();

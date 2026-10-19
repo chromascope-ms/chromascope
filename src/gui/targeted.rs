@@ -840,10 +840,15 @@ fn header(state: &mut UiState, method: &Method, measurements: &[Measurement], ui
                         }
                     }
                 });
-            let ready = state.setup.build_request(method).is_ok_and(|r| {
-                !measurements.is_empty()
-                    && super::calibration_setup::missing_peaks(measurements, &r).is_empty()
-            });
+            // What keeps Recalculate unavailable, so a greyed-out button is never a mystery.
+            let blockers: Vec<String> = match state.setup.build_request(method) {
+                Err(problems) => problems,
+                Ok(_) if measurements.is_empty() => {
+                    vec!["No peaks measured yet: run the batch in tab 1.".into()]
+                }
+                Ok(r) => super::calibration_setup::missing_peaks(measurements, &r),
+            };
+            let ready = blockers.is_empty();
             if ui
                 .add_enabled(
                     ready && state.receiver.is_none(),
@@ -870,6 +875,20 @@ fn header(state: &mut UiState, method: &Method, measurements: &[Measurement], ui
                         "Peaks or settings changed since this calculation — press Recalculate.",
                     );
                 }
+            }
+            if let Some(first) = blockers.first() {
+                let more = blockers.len() - 1;
+                ui.colored_label(
+                    ui.visuals().warn_fg_color,
+                    format!(
+                        "Recalculate is unavailable: {first}{}",
+                        if more > 0 {
+                            format!(" (+{more} more, see Setup step 4)")
+                        } else {
+                            String::new()
+                        }
+                    ),
+                );
             }
         }
         if state.receiver.is_some() {

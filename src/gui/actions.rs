@@ -406,7 +406,6 @@ pub const ACTIONS: &[Action] = &[
             "External standard (peak area)",
             "Internal standard (measured, not quantified)",
             "Extrapolate end standards",
-            "Fit range to standards",
             "Origin",
             "Weighting",
             "Use",
