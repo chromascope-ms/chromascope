@@ -171,13 +171,13 @@ mod tests {
     #[test]
     fn preset_validates_modes_transitions_and_ranges() {
         let bounds = crate::validation::DataBounds::unrestricted();
-        let text = "version = 1\n[[traces]]\nname = 'Transition'\nacquisition = 'MRM'\nmass = 100.0\nprecursor_mz = 483.0\nppm = 5.0\nsmoothing = 2";
+        let text = "version = 1\n[[traces]]\nname = 'Transition'\nacquisition = 'MRM'\nmass = 100.0\nprecursor_mz = 722.44\nppm = 5.0\nsmoothing = 2";
         let (overlay, traces) = parse(text, &bounds).unwrap();
         assert!(!overlay);
         assert_eq!(traces[0].1.ms_level, 2);
         assert_eq!(traces[0].1.acquisition, Some(AcquisitionMode::MRM));
         assert_eq!(traces[0].1.xic_params.unwrap().mass(), 100.0);
-        assert!(parse(&text.replace("precursor_mz = 483.0", ""), &bounds).is_err());
+        assert!(parse(&text.replace("precursor_mz = 722.44", ""), &bounds).is_err());
         assert!(parse(&text.replace("ppm = 5.0", "ppm = -1.0"), &bounds).is_err());
         assert!(parse(&text.replace("smoothing = 2", "smoothing = 25"), &bounds).is_err());
         assert!(parse(&text.replace("version = 1", "version = 2"), &bounds).is_err());
@@ -188,7 +188,7 @@ mod tests {
         use crate::validation::{MassTolerance, ToleranceUnit};
         let bounds = crate::validation::DataBounds::unrestricted();
         let ppm_text =
-            "version = 1\n[[traces]]\nname = 'Ion'\nacquisition = 'FS'\nmass = 483.0\nppm = 5.0";
+            "version = 1\n[[traces]]\nname = 'Ion'\nacquisition = 'FS'\nmass = 722.44\nppm = 5.0";
         let (_, traces) = parse(ppm_text, &bounds).unwrap();
         assert_eq!(
             traces[0].1.xic_params.unwrap().tolerance(),
@@ -225,7 +225,7 @@ mod tests {
             );
         }
         app.active_file_id = Some(10);
-        let (_,specs) = parse("version=1\n[[traces]]\nname='Full scan'\nacquisition='FS'\nkind='TIC'\n[[traces]]\nname='Ion'\nacquisition='FS'\nmass=483.0\nppm=10.0",&crate::validation::DataBounds::unrestricted()).unwrap();
+        let (_,specs) = parse("version=1\n[[traces]]\nname='Full scan'\nacquisition='FS'\nkind='TIC'\n[[traces]]\nname='Ion'\nacquisition='FS'\nmass=722.44\nppm=10.0",&crate::validation::DataBounds::unrestricted()).unwrap();
         app.presets.specs = Some(specs);
         app
     }

@@ -12,18 +12,18 @@ polarity = "positive"
 smoothing = 0
 
 [[traces]]
-name = "Ion 483 — narrow extraction"
+name = "Ion 722 — narrow extraction"
 acquisition = "FS"
 kind = "XIC"
-mass = 483.2383
+mass = 722.44
 ppm = 5.0
 smoothing = 0
 
 [[traces]]
-name = "Ion 483 — wider extraction"
+name = "Ion 722 — wider extraction"
 acquisition = "FS"
 kind = "XIC"
-mass = 483.2383
+mass = 722.44
 ppm = 10.0
 smoothing = 3
 
@@ -32,9 +32,9 @@ smoothing = 3
 # and mass = the product ion. Both require corresponding scan metadata.
 # Example MRM block (uncomment only for a matching MRM source):
 # [[traces]]
-# name = "483 > 100 transition"
+# name = "722 > 100 transition"
 # acquisition = "MRM"
-# precursor_mz = 483.2383
+# precursor_mz = 722.44
 # mass = 100.0
 # ppm = 10.0
 # smoothing = 0

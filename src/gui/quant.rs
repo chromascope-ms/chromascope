@@ -2808,7 +2808,7 @@ mod tests {
         m.analytes.remove(1);
         m.analytes[0].extraction.acquisition = processing::AcquisitionMode::MRM;
         assert!(validate(&m).is_err());
-        m.analytes[0].extraction.precursor_mz = Some(483.0);
+        m.analytes[0].extraction.precursor_mz = Some(722.44);
         assert!(validate(&m).is_ok());
     }
     #[test]

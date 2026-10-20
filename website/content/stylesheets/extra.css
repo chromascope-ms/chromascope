@@ -17,14 +17,10 @@
 }
 .md-typeset .hero h1 {
   margin: 0.4rem 0 0;
-  font-size: 2.6rem;
+  font-size: 2.2rem;
   font-weight: 700;
+  color: var(--md-default-fg-color);
   letter-spacing: -0.01em;
-}
-.md-typeset .hero .hero-slogan {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0.2rem 0;
 }
 .md-typeset .hero .hero-tagline {
   margin: 0.2rem 0;
@@ -32,10 +28,7 @@
 }
 .md-typeset .hero .hero-badges {
   margin: 0.2rem 0 1rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.65;
+  opacity: 0.85;
 }
 .md-typeset .hero .hero-logo {
   display: block;

@@ -1523,7 +1523,7 @@ mod tests {
     #[test]
     fn session_round_trip_preserves_filters_and_measurements() {
         let input = UserInput {
-            mass: super::super::state::ValidatedInput::new(483.0),
+            mass: super::super::state::ValidatedInput::new(722.44),
             polarity: mzdata::spectrum::ScanPolarity::Negative,
             ..Default::default()
         };
@@ -1558,7 +1558,7 @@ mod tests {
             smoothing: 0,
             xic_params: Some(
                 crate::validation::XicParams::new(
-                    483.0,
+                    722.44,
                     mzdata::spectrum::ScanPolarity::Positive,
                     10.0,
                     &crate::validation::DataBounds::unrestricted(),
@@ -1661,7 +1661,7 @@ mod tests {
         new.points[1][1] = 200.0;
         apply_trace(&mut app, 7, new);
         select_trace(&mut app, 7, 0);
-        assert_eq!(app.user_input.mass.value, 483.0);
+        assert_eq!(app.user_input.mass.value, 722.44);
         assert_eq!(app.user_input.mass_tolerance.value, 10.0);
         assert_eq!(app.files[&7].cache.plot_data.as_ref().unwrap(), &old.points);
         assert_eq!(
@@ -1747,11 +1747,11 @@ mod tests {
                 .xic_params
                 .unwrap()
                 .mass(),
-            483.0
+            722.44
         );
         let csv = measurements_csv(&app.workspace.measurements);
         assert!(csv.contains("endpoint chord"));
-        assert!(csv.contains("483"));
+        assert!(csv.contains("722"));
         assert!(csv.contains("\"\"mass\"\""));
         // File, source and trace names come from files on disk and from AI clients.
         app.workspace.measurements[0].file = "=cmd|' /C calc'!A0".into();
@@ -1773,7 +1773,7 @@ mod tests {
             scan: None,
         };
         let input = UserInput {
-            mass: super::super::state::ValidatedInput::new(483.0),
+            mass: super::super::state::ValidatedInput::new(722.44),
             ..Default::default()
         };
         let session = Session {
@@ -1842,11 +1842,11 @@ mod tests {
         let svg = figure_svg(&app).unwrap();
         assert!(svg.contains("sample &amp; test.mzML"));
         assert!(svg.contains("Retention time (min)"));
-        assert!(svg.contains("483.0000"));
+        assert!(svg.contains("722.4400"));
         app.files.get_mut(&7).unwrap().display.visible = false;
         assert!(figure_svg(&app).is_none());
         app.files.get_mut(&7).unwrap().cache.mass_spectrum = Some(crate::parser::MassSpectrum {
-            mz: vec![100.0, 483.0],
+            mz: vec![100.0, 722.44],
             intensity: vec![10.0, 100.0],
             index: 1,
             retention_time: 2.0,
@@ -1925,7 +1925,7 @@ mod tests {
         );
         assert!(!app.async_state.is_processing);
         select_trace(&mut app, 7, 0);
-        assert_eq!(app.user_input.mass.value, 483.0);
+        assert_eq!(app.user_input.mass.value, 722.44);
         assert_eq!(app.files[&7].display.color, previous.color);
     }
     #[test]

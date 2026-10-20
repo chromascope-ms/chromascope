@@ -27,7 +27,7 @@
 
 ---
 
-Chromascope is a free, lightweight, easy-to-use, open-source, vendor-agnostic LC-MS workbench designed for targeted analysis. Open your LC-MS data (convert vendor files to mzML with [msconvert](https://proteowizard.sourceforge.io/)), inspect batches, integrate peaks, build calibration curves, quantify and run QC. Use it like a normal desktop app, script it from the command line, or hand the controls to an AI assistant over [MCP](https://modelcontextprotocol.io). The assistant does the reasoning; Chromascope does the maths, keeps the evidence and records exactly what happened.
+Chromascope is a free, lightweight, easy-to-use, open-source, vendor-agnostic LC-MS workbench designed for targeted analysis. It opens mzML directly and works with any vendor file by converting it automatically with [msconvert](https://proteowizard.sourceforge.io/): download msconvert once and link it in Chromascope ([how](https://chromascope-ms.github.io/chromascope/manual/vendor-files/)). Inspect batches, integrate peaks, build calibration curves, quantify and run QC. Use it like a normal desktop app, script it from the command line, or hand the controls to an AI assistant over [MCP](https://modelcontextprotocol.io). The assistant does the reasoning; Chromascope does the maths, keeps the evidence and records exactly what happened.
 
 https://github.com/user-attachments/assets/cfbe286f-962d-41b3-ad6f-ffa3f33bebf3
 

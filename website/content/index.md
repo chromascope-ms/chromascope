@@ -2,13 +2,11 @@
 title: Chromascope
 ---
 
-<div class="hero" markdown>
+<div class="hero" style="text-align:center" markdown>
 
-![Chromascope](assets/icon.png){ .hero-logo width="120" }
+![Chromascope](assets/icon.png){ .hero-logo width="120" style="display:block;margin:0 auto" }
 
-# Chromascope
-
-<p class="hero-slogan">Analyze more. Click less.</p>
+# Chromascope: Analyze more. Click less.
 
 <p class="hero-tagline">AI-assisted LC-MS analysis, across instrument vendors, with traceable results.</p>
 
@@ -20,7 +18,7 @@ title: Chromascope
 
 </div>
 
-Chromascope is a free, lightweight, easy-to-use, open-source, vendor-agnostic LC-MS workbench designed for targeted analysis. Open your LC-MS data (convert vendor files to mzML with [msconvert](https://proteowizard.sourceforge.io/)), inspect batches, integrate peaks, build calibration curves, quantify and run QC. Use it like a normal desktop app, script it from the command line, or hand the controls to an AI assistant over [MCP](https://modelcontextprotocol.io). The assistant does the reasoning; Chromascope does the maths, keeps the evidence and records exactly what happened. Every number keeps its units, its settings and the hash of the file it came from.
+Chromascope is a free, lightweight, easy-to-use, open-source, vendor-agnostic LC-MS workbench designed for targeted analysis. It opens mzML directly and works with any vendor file by converting it automatically with [msconvert](https://proteowizard.sourceforge.io/): download msconvert once and link it in Chromascope ([how](manual/vendor-files.md)). Inspect batches, integrate peaks, build calibration curves, quantify and run QC. Use it like a normal desktop app, script it from the command line, or hand the controls to an AI assistant over [MCP](https://modelcontextprotocol.io). The assistant does the reasoning; Chromascope does the maths, keeps the evidence and records exactly what happened. Every number keeps its units, its settings and the hash of the file it came from.
 
 ## Who it is for
 

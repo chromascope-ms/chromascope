@@ -687,7 +687,7 @@ mod tests {
                 name: "Analyte A".into(),
                 acquisition: AcquisitionMode::MRM,
                 mass: "100.0".into(),
-                precursor: "483.2383".into(),
+                precursor: "722.44".into(),
                 ppm: "5".into(),
                 smoothing: "3".into(),
                 polarity: "negative".into(),
@@ -703,7 +703,7 @@ mod tests {
         let p: Preset = toml::from_str(&text).unwrap();
         assert_eq!(p.name, "Transitions");
         assert_eq!(p.columns, Some(3));
-        assert_eq!(p.traces[0].precursor_mz, Some(483.2383));
+        assert_eq!(p.traces[0].precursor_mz, Some(722.44));
         assert_eq!(p.traces[0].polarity, "negative");
         let (_, specs) =
             super::super::presets::parse(&text, &crate::validation::DataBounds::unrestricted())
@@ -715,10 +715,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("analytes.toml");
         let mut draft = Draft::default();
-        draft.rows[0].mass = "483.2383".into();
+        draft.rows[0].mass = "722.44".into();
         write_preset(&path, &draft.text().unwrap()).unwrap();
         let loaded = Draft::read(path.clone()).unwrap();
-        assert_eq!(loaded.rows[0].mass, "483.2383");
+        assert_eq!(loaded.rows[0].mass, "722.44");
         draft.name = "Updated analytes".into();
         write_preset(&path, &draft.text().unwrap()).unwrap();
         assert_eq!(Draft::read(path).unwrap().name, "Updated analytes");
@@ -745,8 +745,8 @@ mod tests {
             ..Default::default()
         };
         assert!(row.spec().is_err());
-        let rows=pasted_rows("Name\tAcquisition\tPrecursor m/z\tMass\tppm\tSmoothing\tPolarity\nA\tMRM\t483.0\t100.0\t5\t2\tnegative").unwrap();
-        assert_eq!(rows[0].spec().unwrap().precursor_mz, Some(483.0));
+        let rows=pasted_rows("Name\tAcquisition\tPrecursor m/z\tMass\tppm\tSmoothing\tPolarity\nA\tMRM\t722.44\t100.0\t5\t2\tnegative").unwrap();
+        assert_eq!(rows[0].spec().unwrap().precursor_mz, Some(722.44));
         assert!(pasted_rows("Name\tMass\nA\twrong").is_err());
         assert!(pasted_rows("Name\tMass\tPolarity\nA\t100\tsideways").is_err());
     }

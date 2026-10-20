@@ -337,8 +337,8 @@ mod tests {
 
     #[test]
     fn mz_follows_the_requested_decimals() {
-        assert_eq!(fmt_mz_with(483.123456789, 2), "483.12");
-        assert_eq!(fmt_mz_with(483.123456789, 6), "483.123457");
+        assert_eq!(fmt_mz_with(722.123456789, 2), "722.12");
+        assert_eq!(fmt_mz_with(722.123456789, 6), "722.123457");
     }
 
     #[test]

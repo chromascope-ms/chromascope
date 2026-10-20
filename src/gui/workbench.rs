@@ -583,7 +583,7 @@ fn xic_controls(app: &mut MzViewerApp, ui: &mut egui::Ui) {
     ui.label("Target m/z");
     ui.add(
         egui::TextEdit::singleline(&mut app.user_input.mass.text)
-            .hint_text(format!("e.g. {}", super::settings::fmt_mz(483.0)))
+            .hint_text(format!("e.g. {}", super::settings::fmt_mz(722.44)))
             .desired_width(f32::INFINITY),
     );
     ui.label("Tolerance");
@@ -704,7 +704,7 @@ mod tests {
             app.user_input.line_color = LineColor::Blue;
             if name == "xic" {
                 app.user_input.plot_type = PlotType::Xic;
-                app.user_input.mass = super::super::state::ValidatedInput::new(483.0);
+                app.user_input.mass = super::super::state::ValidatedInput::new(722.44);
                 app.user_input.mass_tolerance = super::super::state::ValidatedInput::new(10.0);
             }
             if loaded {
@@ -756,7 +756,7 @@ mod tests {
                                 native_chromatogram: None,
                             }),
                             mass_spectrum: Some(crate::parser::MassSpectrum {
-                                mz: vec![153.0, 389.0, 483.0, 501.0],
+                                mz: vec![153.0, 389.0, 442.0, 501.0],
                                 intensity: vec![120000.0, 250000.0, 800000.0, 140000.0],
                                 index: 128,
                                 retention_time: 4.82,
@@ -865,7 +865,7 @@ mod tests {
                     trace.params.smoothing = 0;
                     trace.params.xic_params = Some(
                         crate::validation::XicParams::new(
-                            483.0 + i as f64 * 4.0,
+                            722.44 + i as f64 * 4.0,
                             app.user_input.polarity,
                             10.0,
                             &crate::validation::DataBounds::unrestricted(),
