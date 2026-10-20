@@ -51,3 +51,13 @@
   color: var(--md-primary-fg-color);
   font-weight: 700;
 }
+
+/* Screenshots: a thin frame and a quiet caption. */
+.md-typeset figure img {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 6px;
+}
+.md-typeset figure figcaption {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}

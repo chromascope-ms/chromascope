@@ -2,6 +2,11 @@
 
 The Data explorer is where you look at your files. It has the file list on the left, the chromatograms in the middle, the trace settings on the right and the mass spectrum below.
 
+<figure markdown>
+  ![The Data explorer: six traces of one file, the mass spectrum of the selected scan and the trace settings](../assets/data-explorer.png){ loading=lazy }
+  <figcaption>The Data explorer: traces of one file, the mass spectrum of the selected scan and the trace settings.</figcaption>
+</figure>
+
 ## Open data
 
 Choose **File** and then **Open data…** for mzML and mzML.gz files, or drag them into the window. For vendor folders (Agilent or Bruker `.d`, Waters `.raw`) use **Open dataset folder…**. Vendor files need ProteoWizard, see [Vendor files](vendor-files.md).
@@ -28,6 +33,11 @@ Double-click the chromatogram to see the spectrum of the nearest scan. Step with
 Right-drag across a peak. The area is computed from the full-resolution trace between your two boundaries, with a straight-line baseline, in intensity times minutes. Under **Enter integration boundaries** you can type exact times and choose **Integrate and record area**. Every integration is a measurement: **File** then **Integration results…** lists them and exports them as CSV. **Clear integration** removes the markers but keeps the measurements.
 
 Middle-drag zooms. **Reset view** returns to the whole trace.
+
+<figure markdown>
+  ![Quantification and QC, Areas and peak review: every peak of the batch with its confidence, and the integration window of one peak](../assets/quantification.png){ loading=lazy }
+  <figcaption>A peak integrated in the Quantification and QC tab: the window runs from 1.900 to 2.300 min and the shaded part is the integrated area.</figcaption>
+</figure>
 
 ## Presets and sessions
 

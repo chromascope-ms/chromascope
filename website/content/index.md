@@ -32,6 +32,16 @@ Chromascope is for analytical chemists and mass-spectrometry operators who want 
 - *Deliver.* Keep an append-only project history and export an audit package that another person can verify.
 - *Work with an AI.* Over [MCP](mcp/index.md), an assistant such as Claude can open files, extract traces, preview integrations and run a batch. It only does what you allowed when you started the program, and every call is recorded in the window.
 
+<figure markdown>
+  ![The Data explorer: six traces of one file, the mass spectrum of the selected scan and the trace settings](assets/data-explorer.png){ loading=lazy }
+  <figcaption>The Data explorer: traces of one file, the mass spectrum of the selected scan and the trace settings.</figcaption>
+</figure>
+
+<figure markdown>
+  ![Quantification and QC, Areas and peak review: every peak of the batch with its confidence, and the integration window of one peak](assets/quantification.png){ loading=lazy }
+  <figcaption>Areas and peak review: every peak of the batch with its confidence, and the integration window of one peak.</figcaption>
+</figure>
+
 ## Where to go next
 
 | I want to... | Go to |

@@ -1377,7 +1377,7 @@ fn method_editor(
             ui.label("Minimum peak prominence"); ui.add(egui::DragValue::new(&mut draft.minimum_height).range(0.0..=f64::MAX));
             ui.label("Boundary fraction"); ui.add(egui::DragValue::new(&mut draft.boundary_fraction).speed(0.01).range(0.0..=0.5));
         });
-        ui.small("Defaults for every analyte: detection uses a smoothed trace; areas use unsmoothed data above the chosen baseline (straight line unless set). Use the Integration column to choose an algorithm and baseline per analyte. RT is in minutes.");
+        ui.small("Defaults for every analyte: detection uses a smoothed trace; areas use unsmoothed data above the chosen baseline (straight line unless set). Use the Integration column to choose an algorithm and baseline per analyte. RT is in minutes. The window is where the peak is searched, so the integration boundaries lie inside it; choose Fixed window in the Integration column to integrate exactly the whole window.");
         let mut remove=None;
         let defaults = method_default(&*draft);
         egui::ScrollArea::both().max_height(230.0).show(ui,|ui| {

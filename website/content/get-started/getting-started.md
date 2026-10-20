@@ -27,6 +27,11 @@ The new trace shows the same peak, apex near 10.95 minutes. Choose **TIC** to go
 
 ## 3. Look at a spectrum
 
+<figure markdown>
+  ![The Data explorer: six traces of one file, the mass spectrum of the selected scan and the trace settings](../assets/data-explorer.png){ loading=lazy }
+  <figcaption>The Data explorer: traces of one file, the mass spectrum of the selected scan and the trace settings.</figcaption>
+</figure>
+
 Double-click the chromatogram at the top of the peak. The mass spectrum of the nearest scan appears below the chromatogram. Use **Previous** and **Next**, or the left and right arrow keys, to step through the scans.
 
 ## 4. Integrate a peak

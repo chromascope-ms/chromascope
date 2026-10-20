@@ -6,8 +6,13 @@ The tab has three stages, shown as tabs of their own: **1 · Areas and peak revi
 
 ## Stage 1: from files to peak areas
 
+<figure markdown>
+  ![Quantification and QC, Areas and peak review: every peak of the batch with its confidence, and the integration window of one peak](../assets/quantification.png){ loading=lazy }
+  <figcaption>Areas and peak review: every peak of the batch with its confidence, and the integration window of one peak.</figcaption>
+</figure>
+
 1. Under **Batch samples** add the runs with **Add samples…** or **Add dataset folder…**, and tick the ones you want. **Select all** and **Select none** save clicks.
-2. Choose **Edit method…**. For every compound (**Add analyte**) enter a **Target m/z** and a **Tolerance**, the **Mode** (FS, SIM or MRM, which needs a **Precursor m/z**), the **Polarity**, the **MS level**, the **Expected RT** and the retention-time window (**Window start**, **Window end**). Give the method a **Method name**. **Save** keeps the method in a file for reuse; **Save example preset…** writes a starter you can adapt.
+2. Choose **Edit method…**. For every compound (**Add analyte**) enter a **Target m/z** and a **Tolerance**, the **Mode** (FS, SIM or MRM, which needs a **Precursor m/z**), the **Polarity**, the **MS level**, the **Expected RT** and the retention-time window (**Window start**, **Window end**). The window is where the peak is searched: the integration boundaries are set inside it, so a split peak can be cut at its valley. To integrate exactly the whole window, choose **Fixed window** for that compound in the **Integration** column. Give the method a **Method name**. **Save** keeps the method in a file for reuse; **Save example preset…** writes a starter you can adapt.
 3. Choose **Run batch**. The program extracts one sample and one compound at a time in the background. **Cancel** stops after the current extraction and marks the rest as cancelled.
 4. Click a cell of the sample-by-compound table to look at that peak.
 
