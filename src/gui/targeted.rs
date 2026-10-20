@@ -791,6 +791,12 @@ pub(super) fn panel(
                 } else {
                     state.reason.as_str()
                 };
+                let source = batch
+                    .request
+                    .samples
+                    .iter()
+                    .find(|s| s.id == row.sample)
+                    .map_or_else(|| row.sample.clone(), |s| s.source.clone());
                 match t::review(
                     batch,
                     batch.reviews.len(),
@@ -800,8 +806,26 @@ pub(super) fn panel(
                     "gui",
                     reason,
                 ) {
-                    Ok(next) => state.history[current] = next,
-                    Err(e) => state.message = e.to_string(),
+                    Ok(next) => {
+                        state.history[current] = next;
+                        state.message = format!(
+                            "{} {}",
+                            if accepted { "Accepted" } else { "Rejected" },
+                            crate::sample_sheet::stem(&source)
+                        );
+                    }
+                    Err(e) => {
+                        state.message = format!(
+                            "Cannot {} {}: {}",
+                            if accepted { "accept" } else { "reject" },
+                            crate::sample_sheet::stem(&source),
+                            if e.to_string().contains("present quantified") {
+                                "it has no calculated concentration. Fix the calibration or the integration first.".to_owned()
+                            } else {
+                                e.to_string()
+                            }
+                        )
+                    }
                 }
             }
         }

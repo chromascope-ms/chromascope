@@ -615,11 +615,17 @@ fn serde_name<T: Serialize>(value: &T) -> String {
         .and_then(|v| v.as_str().map(str::to_owned))
         .unwrap_or_default()
 }
-fn csv(results: &[Measurement], method: &Method) -> String {
+/// One row per peak. With a calculated batch the row also carries the sample type and name, the
+/// specified amount, the calculated concentration, its accuracy, state and review.
+fn csv_with(
+    results: &[Measurement],
+    method: &Method,
+    batch: Option<&crate::targeted::BatchResult>,
+) -> String {
     fn cell(s: &str) -> String {
         crate::csv_text::cell(s)
     }
-    let mut out = "sample,source,run,analyte,method_name,status,needs_recalculation,review_state,confidence_score,confidence_tier,confidence_flags,area_intensity_min,apex_rt_min,start_rt_min,end_rt_min,height,acquisition,ms_level,polarity,target_mz,ppm,mda,precursor_mz,mz_range,baseline,area_source,algorithm,diagnostic,method_toml\n".to_owned();
+    let mut out = "sample,source,run,analyte,method_name,status,needs_recalculation,review_state,confidence_score,confidence_tier,confidence_flags,area_intensity_min,apex_rt_min,start_rt_min,end_rt_min,height,acquisition,ms_level,polarity,target_mz,ppm,mda,precursor_mz,mz_range,baseline,area_source,algorithm,diagnostic,method_toml,sample_type,sample_name,dilution,specified_amount,response,injected_concentration,calculated_concentration,unit,accuracy_percent,concentration_state,concentration_flags,concentration_review\n".to_owned();
     let fresh = fresh(method);
     for r in results {
         let p = r.peak.as_ref();
@@ -634,7 +640,19 @@ fn csv(results: &[Measurement], method: &Method) -> String {
                     .map(|a| a.integration_for(m))
             })
             .unwrap_or_default();
-        let fields = vec![
+        let concentration = batch.and_then(|b| {
+            let sample = b.request.samples.iter().find(|s| s.source == r.source)?;
+            let target = b.request.targets.iter().find(|t| {
+                t.calibration.is_some() && t.quantifier.extraction.extraction.name == r.analyte
+            })?;
+            let row = b
+                .results
+                .iter()
+                .find(|c| c.sample == sample.id && c.target == target.id)?;
+            Some((sample, target, row))
+        });
+        let number = |n: Option<f64>| n.map(|v| v.to_string()).unwrap_or_default();
+        let mut fields = vec![
             r.sample.clone(),
             r.source.clone(),
             r.run.clone(),
@@ -688,6 +706,34 @@ fn csv(results: &[Measurement], method: &Method) -> String {
             r.diagnostic.clone(),
             r.method.clone(),
         ];
+        match concentration {
+            Some((sample, target, c)) => fields.extend([
+                format!("{:?}", sample.role),
+                sample.label().to_owned(),
+                sample.dilution.to_string(),
+                number(sample.nominal.get(&target.id).copied()),
+                number(c.response),
+                number(c.injected_concentration),
+                number(if c.state == crate::targeted::State::Rejected {
+                    None
+                } else {
+                    c.concentration
+                }),
+                c.unit.label().to_owned(),
+                number(c.accuracy_percent),
+                format!("{:?}", c.state),
+                c.flags.join("; "),
+                if c.reviewed {
+                    "Accepted"
+                } else if c.state == crate::targeted::State::Rejected {
+                    "Rejected"
+                } else {
+                    "Not reviewed"
+                }
+                .to_owned(),
+            ]),
+            None => fields.extend(std::iter::repeat_n(String::new(), 12)),
+        }
         out.push_str(&fields.iter().map(|s| cell(s)).collect::<Vec<_>>().join(","));
         out.push('\n');
     }
@@ -1120,10 +1166,10 @@ pub(super) fn show(app: &mut MzViewerApp, ctx: &egui::Context) {
                             .set_file_name("quantification.csv")
                             .save_file()
                         {
-                            match crate::atomic_write::write_atomic(path, csv(&q.results, &q.method)) {
+                            match crate::atomic_write::write_atomic(path, csv_with(&q.results, &q.method, q.latest_targeted())) {
                                 Ok(()) => {
                                     q.message =
-                                        "Results exported, including review status and method snapshots."
+                                        "Results exported, including concentrations, review status and method snapshots."
                                             .into()
                                 }
                                 Err(e) => q.message = e.to_string(),
@@ -2167,7 +2213,11 @@ pub(super) fn remote_csv(app: &MzViewerApp) -> Result<String, String> {
     if app.quant.results.is_empty() {
         return Err("No batch results".into());
     }
-    Ok(csv(&app.quant.results, &app.quant.method))
+    Ok(csv_with(
+        &app.quant.results,
+        &app.quant.method,
+        app.quant.latest_targeted(),
+    ))
 }
 #[cfg(feature = "mcp")]
 pub(super) fn remote_reset(app: &mut MzViewerApp, index: usize) -> Result<(), String> {
@@ -3070,7 +3120,7 @@ mod tests {
         missing.automatic_status = Status::Missing;
         let mut m = method();
         m.analytes[0].extraction.ppm = 20.0;
-        let output = csv(&[missing], &m);
+        let output = csv_with(&[missing], &m, None);
         assert!(output.contains("\"sample, \"\"A\"\"\""));
         assert!(output.contains(
             "\"Missing\",\"true\",\"Not reviewed\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\""
@@ -3089,7 +3139,7 @@ mod tests {
             .as_mut()
             .expect("the helper result has a peak")
             .area = -5.25;
-        let output = csv(&[hostile], &method());
+        let output = csv_with(&[hostile], &method(), None);
         assert!(output.contains("\"'=HYPERLINK("), "{output}");
         assert!(output.contains("\"'@SUM(A1:A9)\""));
         assert!(output.contains("\"'+cmd|"));

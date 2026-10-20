@@ -15,6 +15,10 @@ pub(super) enum Health {
 }
 pub(super) fn health(row: &t::Concentration) -> Health {
     use t::State::*;
+    // A concentration that was accepted in review is settled, whatever it was flagged for.
+    if row.reviewed && row.state == Present {
+        return Health::Good;
+    }
     if matches!(
         row.state,
         Missing | Rejected | BelowRange | AboveRange | Failed | Ambiguous
@@ -314,6 +318,9 @@ mod tests {
             health(&row(t::State::Present, &["low_confidence_peak"])),
             Health::Check
         );
+        let mut accepted = row(t::State::Present, &["low_confidence_peak"]);
+        accepted.reviewed = true;
+        assert_eq!(health(&accepted), Health::Good);
         assert_eq!(health(&row(t::State::BelowLoq, &[])), Health::Check);
         assert_eq!(health(&row(t::State::Missing, &[])), Health::Bad);
         assert_eq!(health(&row(t::State::AboveRange, &["x"])), Health::Bad);

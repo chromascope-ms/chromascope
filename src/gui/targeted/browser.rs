@@ -50,7 +50,7 @@ pub(super) struct Outcome {
     pub review: Option<bool>,
 }
 
-const HEADERS: [&str; 13] = [
+const HEADERS: [&str; 14] = [
     "Include",
     "File name",
     "Sample type",
@@ -63,6 +63,7 @@ const HEADERS: [&str; 13] = [
     "Calculated amount",
     "% Diff",
     "Confidence",
+    "Review",
     "Flags",
 ];
 fn number(value: Option<f64>, decimals: usize) -> Cell {
@@ -165,6 +166,13 @@ pub(super) fn rows_for(
                         calculated,
                         number(r.accuracy_percent.map(|a| a - 100.0), 2),
                         Cell::text(confidence),
+                        Cell::text(if r.reviewed {
+                            "Accepted"
+                        } else if r.state == t::State::Rejected {
+                            "Rejected"
+                        } else {
+                            "Not reviewed"
+                        }),
                         Cell::text(if r.state == t::State::Present {
                             r.flags.join("; ")
                         } else {
@@ -353,7 +361,7 @@ fn table_pane(
     height: f32,
 ) {
     let weights = [
-        60., 120., 80., 90., 90., 90., 90., 80., 100., 100., 70., 80., 220.,
+        60., 120., 80., 90., 90., 90., 90., 80., 100., 100., 70., 80., 90., 220.,
     ];
     if let Some(i) = table::show_with(
         ui,
@@ -493,40 +501,12 @@ pub(super) fn show(state: &mut UiState, ui: &mut egui::Ui) -> Outcome {
                 .hint_text("Reason (optional)")
                 .desired_width(180.0),
         );
-        ui.menu_button("Export ▾", |ui| {
-            if ui.button("Export concentrations CSV…").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_file_name("concentrations.csv")
-                    .save_file()
-                {
-                    *message = match t::csv(batch)
-                        .map_err(|e| e.to_string())
-                        .and_then(|csv| write_new(&path, csv.as_bytes()).map_err(|e| e.to_string()))
-                    {
-                        Ok(()) => "CSV exported".into(),
-                        Err(e) => e,
-                    };
-                }
-                ui.close();
-            }
-            if ui.button("Export calibration CSV…").clicked() {
-                if let Some(path) = rfd::FileDialog::new()
-                    .set_file_name("calibration.csv")
-                    .save_file()
-                {
-                    *message = match t::calibration_csv(batch)
-                        .map_err(|e| e.to_string())
-                        .and_then(|csv| write_new(&path, csv.as_bytes()).map_err(|e| e.to_string()))
-                    {
-                        Ok(()) => "Calibration CSV exported".into(),
-                        Err(e) => e,
-                    };
-                }
-                ui.close();
-            }
-        });
         if !message.is_empty() {
-            ui.small(message.as_str());
+            if message.starts_with("Cannot") {
+                ui.colored_label(ui.visuals().warn_fg_color, message.as_str());
+            } else {
+                ui.small(message.as_str());
+            }
         }
     });
     if batch.request.targets.iter().any(|t| &t.id == browse_target) {
