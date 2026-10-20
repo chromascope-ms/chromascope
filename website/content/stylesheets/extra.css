@@ -10,27 +10,44 @@
   opacity: 0.8;
 }
 
-/* Home page: a centred introduction instead of a bare heading. */
+/* Home page: a centred introduction. The heading is dark and bold, wraps evenly on a narrow
+   screen, and the tagline and the "Free · Open source" line share one type style. */
 .md-typeset .hero {
   text-align: center;
-  margin: 0.5rem 0 1.5rem;
-}
-.md-typeset .hero h1 {
-  margin: 0.4rem 0 0;
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: var(--md-default-fg-color);
-  letter-spacing: -0.01em;
-}
-.md-typeset .hero .hero-tagline {
-  margin: 0.2rem 0;
-  opacity: 0.85;
-}
-.md-typeset .hero .hero-badges {
-  margin: 0.2rem 0 1rem;
-  opacity: 0.85;
+  margin: 1rem 0 2rem;
 }
 .md-typeset .hero .hero-logo {
   display: block;
   margin: 0 auto;
+  width: 5.2rem;
+  height: auto;
+}
+.md-typeset .hero h1 {
+  max-width: 38rem;
+  margin: 1.2rem auto 0;
+  font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--md-typeset-color);
+  text-wrap: balance;
+}
+.md-typeset .hero .hero-tagline,
+.md-typeset .hero .hero-badges {
+  max-width: 34rem;
+  margin: 0.9rem auto 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--md-typeset-color);
+  opacity: 0.85;
+  text-wrap: balance;
+}
+.md-typeset .hero .hero-badges {
+  margin-top: 0.3rem;
+  margin-bottom: 1.6rem;
+}
+.md-typeset .hero .hero-dot {
+  padding: 0 0.35em;
+  color: var(--md-primary-fg-color);
+  font-weight: 700;
 }

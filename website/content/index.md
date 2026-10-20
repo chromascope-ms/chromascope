@@ -4,13 +4,13 @@ title: Chromascope
 
 <div class="hero" style="text-align:center" markdown>
 
-![Chromascope](assets/icon.png){ .hero-logo width="120" style="display:block;margin:0 auto" }
+![Chromascope](assets/icon.png){ .hero-logo style="display:block;margin:0 auto;width:5.2rem" }
 
 # Chromascope: Analyze more. Click less.
 
 <p class="hero-tagline">AI-assisted LC-MS analysis, across instrument vendors, with traceable results.</p>
 
-<p class="hero-badges">Free &middot; Open source &middot; Built for scientists</p>
+<p class="hero-badges">Free <span class="hero-dot">&middot;</span> Open source <span class="hero-dot">&middot;</span> Built for scientists</p>
 
 [Download Chromascope](get-started/download.md){ .md-button .md-button--primary }
 [Getting started in ten minutes](get-started/getting-started.md){ .md-button }
