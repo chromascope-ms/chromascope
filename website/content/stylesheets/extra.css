@@ -25,7 +25,7 @@
 .md-typeset .hero h1 {
   max-width: 38rem;
   margin: 1.2rem auto 0;
-  font-size: clamp(1.7rem, 3.6vw, 2.5rem);
+  font-size: clamp(1.15rem, 2.4vw, 1.6rem);
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.02em;
