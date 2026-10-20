@@ -22,7 +22,7 @@ Chromascope is a free, lightweight, easy-to-use, open-source, vendor-agnostic LC
 
 ## Who it is for
 
-Chromascope is for analytical chemists and mass-spectrometry operators who want to look at their data, quantify a handful of target compounds, and be able to show later how each result was obtained. You do not need to program.
+Chromascope is for analytical chemists and mass-spectrometry operators who want to explore their data, quantify their batches, and save their analyses reproducibly so they can later see how each result was obtained. No programming is required.
 
 ## What it does
 
@@ -40,8 +40,4 @@ Chromascope is for analytical chemists and mass-spectrometry operators who want 
 | try it on the example file | [Getting started](get-started/getting-started.md) |
 | look things up | [User manual](manual/index.md) |
 | connect an AI assistant | [AI assistants (MCP)](mcp/index.md) |
-| know what it cannot do | [Limitations](manual/limitations.md) |
 | see what changed | [Changelog](about/changelog.md) |
-
-!!! note "Not an instrument-validated product"
-    Chromascope is tested against authored data and independent numerical references. It has not been validated on instruments, and it does not certify regulatory compliance. Read the [limitations](manual/limitations.md) before you rely on a result.

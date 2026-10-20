@@ -29,6 +29,5 @@ A button at the right end of the tab bar shows where you are in the analysis, fr
 - [Command line](command-line.md): the same engine as JSON for scripts.
 - [Settings](settings.md): theme, size, decimals and the update check.
 - [Troubleshooting and FAQ](troubleshooting.md).
-- [Limitations](limitations.md): read this before you trust a number.
 
 New here? Do the [ten-minute tutorial](../get-started/getting-started.md) first.

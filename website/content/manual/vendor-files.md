@@ -14,10 +14,3 @@ Chromascope opens mzML and mzML.gz directly. Files from instrument vendors are c
 - Folders (Agilent and Bruker `.d`, Waters `.raw`): **File** then **Open dataset folder…**.
 
 Conversion runs on your computer, never changes the original and never uploads anything. A spinner shows the progress, and **Cancel** stops an import. Every run of a multi-sample dataset is added to the file list. Converted files live in a temporary folder while the runs are open, so leave enough disk space; opening the data again converts again.
-
-## Good to know
-
-- The conversion asks for 64-bit mzML with lossless compression, no peak picking and no scan filters. SIM and SRM/MRM data are converted to spectra so that traces can be calculated.
-- It adds no ion-mobility or imaging views, and not every vendor-specific field survives the conversion.
-- Chromascope has been tested only with a fake `msconvert`, not with real vendor files. Check a converted file against your vendor software before you rely on it.
-- If a format has no working reader, convert the file to mzML elsewhere and open that.

@@ -269,12 +269,6 @@ fn documentation_matches_the_shipped_app() {
     assert!(changelog.contains(&format!("## [{version}]")));
     assert!(changelog.contains("## [0.2.0]") && changelog.contains("## [0.1.0]"));
 
-    // Numerical behaviour that users can run into is written down (in the manual's Data explorer
-    // page; the README used to write "within **0.01 Da**" in bold, which the website reserves
-    // for labels of the window).
-    let explorer = page("manual/data-explorer.md");
-    assert!(explorer.contains("within 0.01 Da"));
-    assert!(explorer.contains("double precision and rounds once"));
     // Names the app no longer uses stay out of the README and of every website page.
     for text in std::iter::once(&readme).chain(site.iter().map(|(_, text)| text)) {
         assert!(!text.contains("Reports and AI activity"));

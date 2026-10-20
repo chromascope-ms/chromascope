@@ -89,7 +89,6 @@ nav:
       - Command line: manual/command-line.md
       - Settings: manual/settings.md
       - Troubleshooting and FAQ: manual/troubleshooting.md
-      - Limitations: manual/limitations.md
   - AI assistants (MCP):
       - What an AI can do: mcp/index.md
       - Setup: mcp/setup.md

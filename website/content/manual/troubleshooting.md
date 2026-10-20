@@ -40,7 +40,7 @@
 
 *Does Chromascope send my data anywhere?* No. Vendor conversion runs on your computer. The only network use of the desktop program is the once-a-day [update check](settings.md#update-check), which sends an ordinary web request and nothing from your work.
 
-*Can I use it for regulated work?* It has not been validated on instruments and it does not certify compliance. See [Limitations](limitations.md).
+*Can I use it for regulated work?* It has not been validated on instruments and it does not certify compliance.
 
 *Does it contain an AI?* No. If you connect an assistant over MCP, the assistant is a separate program of your choice. See [AI assistants](../mcp/index.md).
 

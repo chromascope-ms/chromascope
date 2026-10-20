@@ -61,8 +61,6 @@ One engine sits behind all four, so a number from the window is the number from 
 
 An assistant works in the window that its client started (`chromascope-mcp`). Its status bar shows how many requests the assistant made, with a link to the call log. When you ask it to *propose* instead of *apply* a change, for example new peak boundaries, the proposal appears in the window under **Audit package**, **Review AI proposals**, with its reason and evidence; only your **Approve** changes a result. Proposals saved in a project can be reviewed later in the plain `chromascope.exe`. See the [guide to reviewing AI proposals](https://chromascope-ms.github.io/chromascope/mcp/reviewing-proposals/).
 
-Chromascope is not validated on instruments and does not certify regulatory compliance; read the [limitations](https://chromascope-ms.github.io/chromascope/manual/limitations/).
-
 ## Development
 
 ```sh

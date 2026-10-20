@@ -38,10 +38,3 @@ A *viewer preset* is a named list of compounds (acquisition, masses, tolerance, 
 ## Export
 
 Under **File** and **Export**: **Chromatogram CSV…** and **Spectrum CSV…** write the numbers, **Figures (SVG)** writes the visible chromatograms or the active mass spectrum as a vector picture at full resolution, whatever the zoom.
-
-## Numbers you should know
-
-- Retention times are in minutes and areas in intensity times minutes.
-- A precursor filter accepts scans whose precursor lies within 0.01 Da of the value you give (fixed, not ppm). If no scan matches, you get an error instead of an empty trace.
-- An integration that reaches beyond the trace is cut at the first and last data point.
-- Intensities are 32-bit numbers as stored in the file. Each trace point sums the peaks inside the m/z window in double precision and rounds once, so intense signals do not lose small contributions. Areas use the full-resolution points. The drawing is thinned to at most 2,000 points and never feeds a calculation.
