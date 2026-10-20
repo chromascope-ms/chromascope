@@ -1,12 +1,33 @@
-# Chromascope
+<p align="center">
+  <img src="website/content/assets/icon.png" alt="Chromascope" width="120">
+</p>
 
-**Analyze more. Click less.**
+<h1 align="center">Chromascope</h1>
 
-AI-assisted LC-MS analysis, across instrument vendors, with traceable results.
+<p align="center"><strong>Analyze more. Click less.</strong></p>
 
-*Free. Open-source. Built for scientists.*
+<p align="center">
+  AI-assisted LC-MS analysis, across instrument vendors, with traceable results.<br>
+  Free &middot; Open source &middot; Built for scientists
+</p>
 
-Chromascope is a free, open-source LC-MS workbench written in Rust. Open mzML data, draw chromatograms and spectra, integrate peaks, build calibration curves, quantify and run QC. Use it like a normal desktop app, script it from the command line, or hand the controls to an AI assistant over [MCP](https://modelcontextprotocol.io). The assistant does the reasoning; Chromascope does the maths, keeps the evidence and records exactly what happened.
+<p align="center">
+  <a href="https://github.com/chromascope-ms/chromascope/actions/workflows/CI.yml"><img src="https://github.com/chromascope-ms/chromascope/actions/workflows/CI.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/chromascope-ms/chromascope/releases/latest"><img src="https://img.shields.io/github/v/release/chromascope-ms/chromascope?include_prereleases" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-GPL--3.0-blue" alt="GPL-3.0 licence"></a>
+  <img src="https://img.shields.io/badge/Rust-1.88%2B-orange" alt="Rust 1.88 or newer">
+</p>
+
+<p align="center">
+  <a href="https://github.com/chromascope-ms/chromascope/releases/latest">Download</a> &nbsp;&middot;&nbsp;
+  <a href="https://chromascope-ms.github.io/chromascope/">Documentation</a> &nbsp;&middot;&nbsp;
+  <a href="https://chromascope-ms.github.io/chromascope/get-started/getting-started/">Getting started</a> &nbsp;&middot;&nbsp;
+  <a href="https://chromascope-ms.github.io/chromascope/mcp/">MCP guide</a>
+</p>
+
+---
+
+Chromascope is a free, lightweight, easy-to-use, open-source, vendor-agnostic LC-MS workbench designed for targeted analysis. Open your LC-MS data (convert vendor files to mzML with [msconvert](https://proteowizard.sourceforge.io/)), inspect batches, integrate peaks, build calibration curves, quantify and run QC. Use it like a normal desktop app, script it from the command line, or hand the controls to an AI assistant over [MCP](https://modelcontextprotocol.io). The assistant does the reasoning; Chromascope does the maths, keeps the evidence and records exactly what happened.
 
 https://github.com/user-attachments/assets/cfbe286f-962d-41b3-ad6f-ffa3f33bebf3
 

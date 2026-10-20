@@ -9,3 +9,35 @@
   font-size: 0.8rem;
   opacity: 0.8;
 }
+
+/* Home page: a centred introduction instead of a bare heading. */
+.md-typeset .hero {
+  text-align: center;
+  margin: 0.5rem 0 1.5rem;
+}
+.md-typeset .hero h1 {
+  margin: 0.4rem 0 0;
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.md-typeset .hero .hero-slogan {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.2rem 0;
+}
+.md-typeset .hero .hero-tagline {
+  margin: 0.2rem 0;
+  opacity: 0.85;
+}
+.md-typeset .hero .hero-badges {
+  margin: 0.2rem 0 1rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.md-typeset .hero .hero-logo {
+  display: block;
+  margin: 0 auto;
+}
