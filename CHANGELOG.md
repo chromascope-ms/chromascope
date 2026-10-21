@@ -4,7 +4,7 @@ All notable changes to Chromascope. The format follows [Keep a Changelog](https:
 versions follow [Semantic Versioning](https://semver.org/). Each release page on GitHub carries the
 installers.
 
-## [0.3.0] - unreleased
+## [0.3.0] - 2026-10-21
 
 The first release since v0.2.0 (2026-03-01). Chromascope grows from an mzML viewer into a
 quantification workbench with a command-line interface and two MCP servers.
@@ -120,6 +120,7 @@ quantification workbench with a command-line interface and two MCP servers.
   the trace used to extend the edge intensity flat, so the area changed with the zoom and the
   recorded start/end fell outside the data. Windows are now clamped to the data, and a window that
   misses the trace is rejected.
+- **CSV export and stale concentrations.** Export CSV and the MCP export no longer write the latest calculated concentrations next to peak areas that changed after the calculation: when peaks or settings changed, the concentration columns stay empty and the message says to recalculate.
 - Report replay after relocating sources into a bundle; NaN scan windows; stale reference output
   in CI.
 
