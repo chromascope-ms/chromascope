@@ -4,7 +4,11 @@ If Chromascope helped with work you publish, please cite the program and say whi
 
 ## Suggested citation
 
-> Cseresznye A. Chromascope: an open-source, AI-ready LC-MS workbench (version 0.3.0) [software]. https://github.com/chromascope-ms/chromascope
+> Cseresznye A. Chromascope: an open-source, AI-ready LC-MS workbench (version 0.3.0) [software]. Zenodo. https://doi.org/10.5281/zenodo.23542311
+
+DOI: [10.5281/zenodo.23542311](https://doi.org/10.5281/zenodo.23542311)
+
+This is the concept DOI: it always resolves to the latest archived version. Each release also has its own version DOI, listed on the [Zenodo record](https://doi.org/10.5281/zenodo.23542311). The source is on [GitHub](https://github.com/chromascope-ms/chromascope).
 
 ## For methods sections
 

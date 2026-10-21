@@ -96,13 +96,13 @@ flowchart LR
 
 If Chromascope helps with work you publish, please cite it and name the version you used (**File**, **About Chromascope…**). The metadata are in [CITATION.cff](CITATION.cff), which GitHub shows under "Cite this repository".
 
-<!-- TODO: after the first release has been archived on Zenodo, add the DOI badge here, for example:
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
-and add the same concept DOI, and the year, to CITATION.cff, the BibTeX entry and the plain-text citation below. -->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23542311.svg)](https://doi.org/10.5281/zenodo.23542311)
+
+The DOI above is the concept DOI: it always resolves to the latest archived version. Each release also has its own version DOI on [Zenodo](https://doi.org/10.5281/zenodo.23542311).
 
 Plain text:
 
-> Cseresznye, A. Chromascope: an open-source, AI-ready LC-MS workbench, version 0.3.0. https://github.com/chromascope-ms/chromascope
+> Cseresznye, A. Chromascope: an open-source, AI-ready LC-MS workbench, version 0.3.0. Zenodo. https://doi.org/10.5281/zenodo.23542311
 
 BibTeX:
 
@@ -111,6 +111,8 @@ BibTeX:
   author  = {Cseresznye, Adam},
   title   = {Chromascope: an open-source, AI-ready LC-MS workbench},
   version = {0.3.0},
+  year    = {2026},
+  doi     = {10.5281/zenodo.23542311},
   url     = {https://github.com/chromascope-ms/chromascope},
   license = {GPL-3.0-only}
 }

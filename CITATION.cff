@@ -20,10 +20,9 @@ license: GPL-3.0-only
 repository-code: "https://github.com/chromascope-ms/chromascope"
 url: "https://chromascope-ms.github.io/chromascope/"
 version: 0.3.0
-# TODO: add date-released (YYYY-MM-DD): the day version 0.3.0 is published as a GitHub release.
-# The doi field is left out on purpose. After the first release has been archived on Zenodo, add
-# the concept DOI (the one that always points at the latest version):
-#   doi: 10.5281/zenodo.XXXXXXX
+date-released: "2026-10-21"
+# Concept DOI (Zenodo): always points at the latest archived version.
+doi: 10.5281/zenodo.23542311
 keywords:
   - mass spectrometry
   - LC-MS
