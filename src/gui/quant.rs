@@ -616,7 +616,10 @@ fn serde_name<T: Serialize>(value: &T) -> String {
         .unwrap_or_default()
 }
 /// One row per peak. With a calculated batch the row also carries the sample type and name, the
-/// specified amount, the calculated concentration, its accuracy, state and review.
+/// specified amount, the calculated concentration, its accuracy, state and review. A concentration
+/// is only written next to a peak that is still the one it was calculated from; when the peak was
+/// re-integrated afterwards the concentration columns say so instead of pairing a new area with an
+/// old concentration.
 fn csv_with(
     results: &[Measurement],
     method: &Method,
@@ -649,7 +652,20 @@ fn csv_with(
                 .results
                 .iter()
                 .find(|c| c.sample == sample.id && c.target == target.id)?;
-            Some((sample, target, row))
+            let same_peak = b
+                .observations
+                .iter()
+                .find(|o| o.sample == sample.id && o.target == target.id)
+                .is_some_and(|o| match (&o.quantifier.peak, &r.peak) {
+                    (None, None) => true,
+                    (Some(a), Some(b)) => {
+                        a.start.to_bits() == b.start.to_bits()
+                            && a.end.to_bits() == b.end.to_bits()
+                            && a.area.to_bits() == b.area.to_bits()
+                    }
+                    _ => false,
+                });
+            Some((sample, target, row, same_peak))
         });
         let number = |n: Option<f64>| n.map(|v| v.to_string()).unwrap_or_default();
         let mut fields = vec![
@@ -707,7 +723,21 @@ fn csv_with(
             r.method.clone(),
         ];
         match concentration {
-            Some((sample, target, c)) => fields.extend([
+            Some((sample, target, _, false)) => fields.extend([
+                format!("{:?}", sample.role),
+                sample.label().to_owned(),
+                sample.dilution.to_string(),
+                number(sample.nominal.get(&target.id).copied()),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                String::new(),
+                "Outdated: the peak changed after the calculation, recalculate".to_owned(),
+                String::new(),
+                String::new(),
+            ]),
+            Some((sample, target, c, true)) => fields.extend([
                 format!("{:?}", sample.role),
                 sample.label().to_owned(),
                 sample.dilution.to_string(),
@@ -3318,5 +3348,43 @@ mod tests {
         let action = q.pending_method.take().unwrap();
         change_method(&mut q, action);
         assert_eq!(q.method.name, Method::default().name);
+    }
+    mod export_after_a_calculation {
+        use super::*;
+        use crate as chromascope;
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/targeted_support.rs"
+        ));
+        #[test]
+        fn a_re_integrated_peak_is_not_paired_with_its_old_concentration() {
+            let dir = tempfile::tempdir().unwrap();
+            let batch =
+                crate::targeted::run(raw_request(dir.path()), &crate::jobs::JobControl::default())
+                    .unwrap();
+            let row = batch
+                .results
+                .iter()
+                .find(|r| r.concentration.is_some())
+                .expect("a quantified result");
+            let observation = batch
+                .observations
+                .iter()
+                .find(|o| o.sample == row.sample && o.target == row.target)
+                .unwrap();
+            let mut measurement = observation.quantifier.clone();
+            let m = Method::default();
+            let current = csv_with(std::slice::from_ref(&measurement), &m, Some(&batch));
+            assert!(current.contains("\"Present\""), "{current}");
+            assert!(!current.contains("Outdated"));
+            // Re-integrate the peak after the calculation: a new area must not sit next to the
+            // concentration that was calculated from the old one.
+            measurement.peak.as_mut().unwrap().area *= 1.5;
+            let stale = csv_with(std::slice::from_ref(&measurement), &m, Some(&batch));
+            assert!(stale.contains("Outdated"), "{stale}");
+            assert!(!stale.contains("\"Present\""), "{stale}");
+            // Without a calculated run the columns stay empty, as before.
+            assert!(!csv_with(&[measurement], &m, None).contains("Outdated"));
+        }
     }
 }
