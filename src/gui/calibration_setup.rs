@@ -294,16 +294,23 @@ impl Setup {
                     .iter()
                     .filter(|r| r.role == t::Role::Standard)
                     .count();
-                problems.push(format!(
-                    "{} needs standards at two or more different levels ({} of {standards} standards are included, {} with a concentration).",
-                    a.name,
-                    self.rows
-                        .iter()
-                        .filter(|r| r.role == t::Role::Standard
-                            && excluded(&stem(&r.source), &a.name).is_none())
-                        .count(),
-                    points.len()
-                ));
+                problems.push(if standards == 0 {
+                    format!(
+                        "{} needs standards at two or more different levels: no sample is marked as a standard yet. Mark them in step 1, or choose \"None: report peak areas only\" for this analyte in step 3.",
+                        a.name
+                    )
+                } else {
+                    format!(
+                        "{} needs standards at two or more different levels ({} of {standards} standards are included, {} with a concentration).",
+                        a.name,
+                        self.rows
+                            .iter()
+                            .filter(|r| r.role == t::Role::Standard
+                                && excluded(&stem(&r.source), &a.name).is_none())
+                            .count(),
+                        points.len()
+                    )
+                });
             }
             ranges.push([low, high]);
         }

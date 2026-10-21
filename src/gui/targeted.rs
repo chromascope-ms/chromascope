@@ -517,7 +517,7 @@ fn analytes_section(state: &mut UiState, ui: &mut egui::Ui) {
                         copy_from = Some(i);
                     }
                 });
-                ui.collapsing("Limits", |ui| {
+                egui::CollapsingHeader::new("Limits").id_salt(("cal_limits", i)).show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
                         for (label, value, hint) in [
                             ("LOD", &mut a.cfg.lod, "limit of detection (concentration)"),
