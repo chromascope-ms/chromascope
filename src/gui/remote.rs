@@ -1185,9 +1185,12 @@ impl MzViewerApp {
             }
             Command::ExportQuantification { path } => {
                 let path = b.policy.output(&path)?;
-                let csv = super::quant::remote_csv(self)?;
+                let (csv, stale) = super::quant::remote_csv(self)?;
                 crate::atomic_write::write_atomic_new(&path, csv).map_err(err)?;
-                json!({"path":path})
+                match stale {
+                    Some(note) => json!({"path":path,"note":note}),
+                    None => json!({"path":path}),
+                }
             }
             Command::ResetQuantification { result_index } => {
                 super::quant::remote_reset(self, result_index)?;
@@ -2179,6 +2182,7 @@ mod tests {
         );
         assert!(super::super::quant::remote_csv(&app)
             .unwrap()
+            .0
             .contains("method_toml"));
         app.remote_command(Command::CancelQuantification {}, &mut b, &ctx)
             .unwrap();

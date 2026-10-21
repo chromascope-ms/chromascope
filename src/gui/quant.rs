@@ -129,6 +129,19 @@ impl QuantState {
     pub(super) fn latest_targeted(&self) -> Option<&crate::targeted::BatchResult> {
         self.targeted.latest()
     }
+    /// The calculated batch to put in an export, and the reason when there is none although one
+    /// exists: concentrations are only exported next to the peaks they were calculated from.
+    pub(super) fn export_batch(
+        &self,
+    ) -> (Option<&crate::targeted::BatchResult>, Option<&'static str>) {
+        match self.latest_targeted() {
+            Some(b) if self.targeted.latest_is_current(&self.method, &self.results) => {
+                (Some(b), None)
+            }
+            Some(_) => (None, Some(STALE_CALCULATION)),
+            None => (None, None),
+        }
+    }
     /// Peak integrations that still need scientist review: missing, ambiguous,
     /// failed, cancelled, pending, or measured under a changed method.
     pub(super) fn unresolved_count(&self) -> usize {
@@ -608,6 +621,7 @@ pub(super) fn shortcuts(app: &mut MzViewerApp, ctx: &egui::Context) {
         }
     }
 }
+const STALE_CALCULATION: &str = "The concentration columns are empty: peaks or settings changed since the last calculation, so recalculate (Calibration tab) and export again.";
 /// Snake-case name of a unit enum variant, as written in method files.
 fn serde_name<T: Serialize>(value: &T) -> String {
     serde_json::to_value(value)
@@ -1196,11 +1210,13 @@ pub(super) fn show(app: &mut MzViewerApp, ctx: &egui::Context) {
                             .set_file_name("quantification.csv")
                             .save_file()
                         {
-                            match crate::atomic_write::write_atomic(path, csv_with(&q.results, &q.method, q.latest_targeted())) {
+                            let (batch, stale) = q.export_batch();
+                            match crate::atomic_write::write_atomic(path, csv_with(&q.results, &q.method, batch)) {
                                 Ok(()) => {
-                                    q.message =
-                                        "Results exported, including concentrations, review status and method snapshots."
-                                            .into()
+                                    q.message = match stale {
+                                        Some(why) => format!("Results exported. {why}"),
+                                        None => "Results exported, including concentrations, review status and method snapshots.".into(),
+                                    }
                                 }
                                 Err(e) => q.message = e.to_string(),
                             }
@@ -2236,17 +2252,17 @@ pub(super) fn remote_trace(
     )
 }
 #[cfg(feature = "mcp")]
-pub(super) fn remote_csv(app: &MzViewerApp) -> Result<String, String> {
+pub(super) fn remote_csv(app: &MzViewerApp) -> Result<(String, Option<&'static str>), String> {
     if app.quant.rx.is_some() {
         return Err("Wait for batch completion before exporting".into());
     }
     if app.quant.results.is_empty() {
         return Err("No batch results".into());
     }
-    Ok(csv_with(
-        &app.quant.results,
-        &app.quant.method,
-        app.quant.latest_targeted(),
+    let (batch, stale) = app.quant.export_batch();
+    Ok((
+        csv_with(&app.quant.results, &app.quant.method, batch),
+        stale,
     ))
 }
 #[cfg(feature = "mcp")]
@@ -3385,6 +3401,50 @@ mod tests {
             assert!(!stale.contains("\"Present\""), "{stale}");
             // Without a calculated run the columns stay empty, as before.
             assert!(!csv_with(&[measurement], &m, None).contains("Outdated"));
+        }
+        #[test]
+        fn an_edited_peak_after_the_calculation_exports_no_concentrations() {
+            let dir = tempfile::tempdir().unwrap();
+            let batch =
+                crate::targeted::run(raw_request(dir.path()), &crate::jobs::JobControl::default())
+                    .unwrap();
+            let method = Method {
+                analytes: ["Analyte", "IS"]
+                    .iter()
+                    .map(|name| {
+                        let mut a = crate::quant::new_analyte(1);
+                        a.extraction.name = (*name).into();
+                        a.extraction.mass = Some(100.0);
+                        a
+                    })
+                    .collect(),
+                ..Default::default()
+            };
+            let mut results = vec![];
+            for n in 7..=12 {
+                for analyte in &method.analytes {
+                    let mut r = result();
+                    r.source = format!("C:/d/26-{n}.mzML");
+                    r.analyte = analyte.extraction.name.clone();
+                    results.push(r);
+                }
+            }
+            let mut q = QuantState::default();
+            q.targeted =
+                crate::gui::targeted::UiState::calculated_for_test(&method, &results, batch);
+            q.method = method;
+            q.results = results;
+            assert!(q.export_batch().0.is_some() && q.export_batch().1.is_none());
+            // Edit one peak after the calculation.
+            q.results[3].peak.as_mut().unwrap().area *= 1.5;
+            let (batch, why) = q.export_batch();
+            assert!(batch.is_none(), "stale batch must not be exported");
+            assert!(why.unwrap().contains("recalculate"));
+            let csv = csv_with(&q.results, &q.method, batch);
+            assert!(
+                !csv.contains("\"Present\"") && !csv.contains("Outdated"),
+                "{csv}"
+            );
         }
     }
 }

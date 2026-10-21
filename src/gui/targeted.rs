@@ -76,6 +76,18 @@ impl UiState {
     pub(super) fn latest(&self) -> Option<&crate::targeted::BatchResult> {
         self.history.get(self.current_batch)
     }
+    /// Whether the latest batch was calculated from the peaks and settings that are in the window
+    /// now (the same check as the "Peaks or settings changed" notice).
+    pub(super) fn latest_is_current(&self, method: &Method, measurements: &[Measurement]) -> bool {
+        let (Some(batch), Some(done)) = (self.latest(), self.calculated) else {
+            return false;
+        };
+        done == signature(&batch.request, measurements)
+            && self
+                .setup
+                .build_request(method)
+                .is_ok_and(|request| signature(&request, measurements) == done)
+    }
     pub(super) fn batch_count(&self) -> usize {
         self.history.len()
     }
@@ -983,6 +995,42 @@ pub(super) fn poll(state: &mut UiState, ctx: &egui::Context) {
                 ctx.request_repaint_after(std::time::Duration::from_millis(100))
             }
         }
+    }
+}
+
+#[cfg(test)]
+impl UiState {
+    /// A window state that has calculated a batch from `method` and `measurements`: six standards
+    /// (files `26-7` to `26-12`) and the analytes `Analyte` and `IS`.
+    pub(super) fn calculated_for_test(
+        method: &Method,
+        measurements: &[Measurement],
+        mut batch: t::BatchResult,
+    ) -> UiState {
+        use crate::sample_sheet::{apply, Level};
+        let samples: Vec<(String, String)> = (7..=12)
+            .map(|n| (format!("C:/d/26-{n}.mzML"), format!("26-{n}")))
+            .collect();
+        let mut state = UiState::default();
+        let setup = &mut state.setup;
+        setup.sync(&samples, &method.analytes);
+        let sheet: String =
+            std::iter::once("sample type,file name,sample id,dilution,level\n".to_owned())
+                .chain((7..=12).map(|n| format!("standard,26-{n},s{n},1,{}\n", n - 6)))
+                .collect();
+        apply(&mut setup.rows, &sheet).unwrap();
+        setup.analytes[1].is_standard = true;
+        setup.analytes[0].internal_standard = Some("IS".into());
+        setup.levels = (1..=6)
+            .map(|n| Level {
+                name: n.to_string(),
+                conc: [("Analyte".to_owned(), f64::from(n))].into(),
+            })
+            .collect();
+        batch.request = setup.build_request(method).unwrap();
+        state.calculated = Some(signature(&batch.request, measurements));
+        state.history.push(batch);
+        state
     }
 }
 
