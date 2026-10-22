@@ -98,8 +98,6 @@ If Chromascope helps with work you publish, please cite it and name the version 
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23542311.svg)](https://doi.org/10.5281/zenodo.23542311)
 
-The DOI above is the concept DOI: it always resolves to the latest archived version. Each release also has its own version DOI on [Zenodo](https://doi.org/10.5281/zenodo.23542311).
-
 Plain text:
 
 > Cseresznye, A. Chromascope: an open-source, AI-ready LC-MS workbench, version 0.3.0. Zenodo. https://doi.org/10.5281/zenodo.23542311
