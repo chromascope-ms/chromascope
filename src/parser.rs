@@ -88,8 +88,11 @@ impl DataReader {
                 if let mzdata::io::MZReaderType::MzML(inner) = &mut reader {
                     inner.spectrum_index.clear();
                     inner.build_index();
-                    inner.chromatogram_index.clear();
-                    inner.chromatogram_index.init = false;
+                    // Chromatogram-only files legitimately have no spectra; keep their index.
+                    if !inner.spectrum_index.is_empty() {
+                        inner.chromatogram_index.clear();
+                        inner.chromatogram_index.init = false;
+                    }
                 }
             }
             Ok(Self::Plain(Box::new(reader)))
