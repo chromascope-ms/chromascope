@@ -81,7 +81,18 @@ impl DataReader {
             MZReader::<File>::open_gzipped_read_seek(File::open(path)?)
                 .map(|reader| Self::Gzip(Box::new(reader)))
         } else {
-            MZReader::open_path(path).map(|reader| Self::Plain(Box::new(reader)))
+            let mut reader = MZReader::open_path(path)?;
+            // A stale `<indexList>` (offsets from before the file was edited or truncated)
+            // yields an empty index and mzdata does not fall back to scanning the file.
+            if reader.len() == 0 {
+                if let mzdata::io::MZReaderType::MzML(inner) = &mut reader {
+                    inner.spectrum_index.clear();
+                    inner.build_index();
+                    inner.chromatogram_index.clear();
+                    inner.chromatogram_index.init = false;
+                }
+            }
+            Ok(Self::Plain(Box::new(reader)))
         }
     }
     fn len(&self) -> usize {
