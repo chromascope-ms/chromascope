@@ -100,7 +100,7 @@ If Chromascope helps with work you publish, please cite it and name the version 
 
 Plain text:
 
-> Cseresznye, A. Chromascope: an open-source, AI-ready LC-MS workbench, version 0.3.0. Zenodo. https://doi.org/10.5281/zenodo.23542311
+> Cseresznye, A. Chromascope: an open-source, AI-ready LC-MS workbench, version 0.3.1. Zenodo. https://doi.org/10.5281/zenodo.23542311
 
 BibTeX:
 
@@ -108,7 +108,7 @@ BibTeX:
 @software{cseresznye_chromascope,
   author  = {Cseresznye, Adam},
   title   = {Chromascope: an open-source, AI-ready LC-MS workbench},
-  version = {0.3.0},
+  version = {0.3.1},
   year    = {2026},
   doi     = {10.5281/zenodo.23542311},
   url     = {https://github.com/chromascope-ms/chromascope},

@@ -1,6 +1,6 @@
 [package]
 name = "chromascope"
-version = "0.3.0"
+version = "0.3.1"
 default-run = "chromascope"
 authors = ["Adam Cseresznye"]
 edition = "2021"

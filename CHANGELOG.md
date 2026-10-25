@@ -4,6 +4,15 @@ All notable changes to Chromascope. The format follows [Keep a Changelog](https:
 versions follow [Semantic Versioning](https://semver.org/). Each release page on GitHub carries the
 installers.
 
+## [0.3.1] - 2026-10-25
+
+### Fixed
+
+- **mzML files with a stale index now open.** A file whose `<indexList>` no longer matches the
+  file (for example because it was edited or truncated after conversion) was reported as
+  "File contains no spectra or chromatograms". When the stored index yields no spectra, the
+  spectrum index is now rebuilt by scanning the file.
+
 ## [0.3.0] - 2026-10-21
 
 The first release since v0.2.0 (2026-03-01). Chromascope grows from an mzML viewer into a

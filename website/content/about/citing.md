@@ -4,7 +4,7 @@ If Chromascope helped with work you publish, please cite the program and say whi
 
 ## Suggested citation
 
-> Cseresznye A. Chromascope: an open-source, AI-ready LC-MS workbench (version 0.3.0) [software]. Zenodo. https://doi.org/10.5281/zenodo.23542311
+> Cseresznye A. Chromascope: an open-source, AI-ready LC-MS workbench (version 0.3.1) [software]. Zenodo. https://doi.org/10.5281/zenodo.23542311
 
 DOI: [10.5281/zenodo.23542311](https://doi.org/10.5281/zenodo.23542311)
 

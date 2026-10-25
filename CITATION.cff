@@ -19,8 +19,8 @@ authors:
 license: GPL-3.0-only
 repository-code: "https://github.com/chromascope-ms/chromascope"
 url: "https://chromascope-ms.github.io/chromascope/"
-version: 0.3.0
-date-released: "2026-10-21"
+version: 0.3.1
+date-released: "2026-10-25"
 # Concept DOI (Zenodo): always points at the latest archived version.
 doi: 10.5281/zenodo.23542311
 keywords:

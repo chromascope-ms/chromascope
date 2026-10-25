@@ -683,7 +683,7 @@ dependencies = [
 
 [[package]]
 name = "chromascope"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "approx",
  "base64 0.22.1",
